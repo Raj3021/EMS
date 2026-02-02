@@ -45,7 +45,7 @@ function Sidebar({ collapsed, onToggle }) {
           </div>
           {!collapsed && (
             <span className="font-semibold text-lg text-sidebar-foreground">
-              WorkHub
+              Saka
             </span>
           )}
         </div>

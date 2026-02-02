@@ -62,7 +62,7 @@ export default function Layout({ children }) {
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <Building2 className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold text-foreground">WorkHub</span>
+            <span className="text-lg font-bold text-foreground">Saka</span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
