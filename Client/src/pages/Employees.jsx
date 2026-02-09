@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Search, Plus, Mail, Phone, MoreVertical, X } from "lucide-react";
+import { Search, Plus, Mail, Phone, MoreVertical, X, TrendingUpDown } from "lucide-react";
+import { Modal } from "../components/ui/Modal";
 
 const employees = [
   {
@@ -53,11 +54,14 @@ export default function Employees() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [isEmployee, setIsEmployee] = useState(false);
+  const [selectedRole, setSelectedRole] = useState("");
 
   const filteredEmployees = employees.filter(
     (emp) =>
       emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.role.toLowerCase().includes(searchQuery.toLowerCase())
+      emp.role.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -68,7 +72,7 @@ export default function Employees() {
           <h1 className="text-2xl font-bold text-foreground">Employees</h1>
           <p className="text-muted-foreground mt-1">Manage your team members</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+        <button className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors" onClick={() => setShowAddModal(true)}>
           <Plus className="w-4 h-4" />
           Add Employee
         </button>
@@ -145,6 +149,85 @@ export default function Employees() {
           </div>
         ))}
       </div>
+
+      {/* Add employee Modal */}
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Add New Employee"
+        size="lg">
+        <form className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div >
+              <label className="block text-sm font-medium mb-2">
+                First Name
+              </label>
+              <input type="text" className="input-field" placeholder="First Name" required autocomplete="new"/>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Last Name
+              </label>
+              <input type="text" className="input-field" placeholder="Last Name" required autoComplete="new"/>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Email</label>
+            <input
+              type="email"
+              className="input-field"
+              placeholder="john.doe@company.com"
+              required
+              autoComplete="new"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div onChange={(e) => {
+              setSelectedRole(e.target.value);
+              setIsEmployee(e.target.value === "Employee");
+            }}>
+              <label className="block text-sm font-medium mb-2">Role</label>
+              <select className="input-field">
+                <option value="">Select Role</option>
+                <option value="Manager">Manager</option>
+                <option value="Employee">Employee</option>
+              </select>
+            </div>
+            {isEmployee && (<div >
+              <label className="block text-sm font-medium mb-2">
+                Department
+              </label>
+              <select className="input-field">
+                <option value="">Select department</option>
+                <option value="engineering">Engineering</option>
+                <option value="design">Design</option>
+                <option value="marketing">Marketing</option>
+                <option value="sales">Sales</option>
+                <option value="hr">Human Resources</option>
+              </select>
+            </div>)}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={() => {setShowAddModal(false); setIsEmployee(false); setSelectedRole("");}}
+              className="px-4 py-2 rounded-lg border border-border hover:bg-muted transition-colors">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              onClick={() => {setIsEmployee(false); setSelectedRole("");}}
+              >
+              Add Employee
+            </button>
+          </div>
+        </form>
+      </Modal>
+
 
       {/* Employee Detail Modal */}
       {showModal && selectedEmployee && (

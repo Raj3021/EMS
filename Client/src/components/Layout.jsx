@@ -19,6 +19,7 @@ import {
   Bell,
   Search,
 } from "lucide-react";
+import { authService } from "../services/authService";
 
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -37,7 +38,9 @@ export default function Layout({ children }) {
     { name: "Settings", path: "/settings", icon: Settings },
   ];
 
-  const handleLogout = () => {
+  const handleLogout = (e) => {
+    e.preventDefault();
+    authService.logout();
     navigate("/login");
   };
 

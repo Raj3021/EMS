@@ -16,40 +16,75 @@ router.post(
   requirePermission("invite_user"),
   async (req, res) => {
     try {
-      const { email, roleId } = req.body;
-      console.log(email);
-      console.log(roleId);
-      if (!email || !roleId) {
-        return res.status(400).json({ error: "Email and roleId are required" });
+      const { firstName, lastName, email, roleId } = req.body;
+
+      // ✅ Validation
+      if (!firstName || !email || !roleId) {
+        return res.status(400).json({
+          error: "firstName, email, and roleId are required"
+        });
       }
 
       const tenantId = req.user.tenantId;
       const invitedBy = req.user.userId;
 
+      // Prevent duplicate invites/users
+      const existing = await pool.query(
+        `
+        SELECT 1
+        FROM users
+        WHERE tenant_id = $1 AND email = $2
+        `,
+        [tenantId, email]
+      );
+
+      if (existing.rowCount > 0) {
+        return res.status(409).json({
+          error: "User with this email already exists"
+        });
+      }
+
       // 1️⃣ Generate secure token
       const token = crypto.randomBytes(32).toString("hex");
 
-      // 2️⃣ Set expiry (24 hours)
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      // 2️⃣ Expiry (48 hours)
+      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-      // 3️⃣ Store invite in DB
+      // 3️⃣ Store invite (NOW COMPLETE)
       await pool.query(
         `
-        INSERT INTO invites
-          (tenant_id, email, role_id, token, expires_at, invited_by)
-        VALUES
-          ($1, $2, $3, $4, $5, $6)
+        INSERT INTO invites (
+          tenant_id,
+          email,
+          first_name,
+          last_name,
+          role_id,
+          token,
+          expires_at,
+          invited_by
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         `,
-        [tenantId, email, roleId, token, expiresAt, invitedBy]
+        [
+          tenantId,
+          email,
+          firstName,
+          lastName || null,
+          roleId,
+          token,
+          expiresAt,
+          invitedBy
+        ]
       );
 
-      // 4️⃣ Build invite link (frontend URL later)
-      const inviteLink = `http://localhost:3000/set-password?token=${token}`;
+      // 4️⃣ Invite link
+      const inviteLink = `http://localhost:3000/accept-invite?token=${token}`;
 
       return res.status(201).json({
         message: "Invite created successfully",
-        inviteLink,
+        inviteLink
       });
+
     } catch (error) {
       console.error("Invite error:", error);
       return res.status(500).json({ error: "Internal server error" });

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="df14bbd3-a32a-473d-9d9c-929c2c13dead" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/Client/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/Client/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Client/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/Client/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Client/src/components/ui/Modal.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/Client/src/components/ui/Modal.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Client/src/pages/Employees.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/Client/src/pages/Employees.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Client/src/pages/Login.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/Client/src/pages/Login.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server/node_modules/.package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/Server/node_modules/.package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server/node_modules/cors/CONTRIBUTING.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server/node_modules/cors/HISTORY.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server/node_modules/cors/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/Server/node_modules/cors/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server/node_modules/cors/lib/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/Server/node_modules/cors/lib/index.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server/node_modules/cors/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/Server/node_modules/cors/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/Server/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/Server/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server/routes/auth.js" beforeDir="false" afterPath="$PROJECT_DIR$/Server/routes/auth.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server/routes/invites.js" beforeDir="false" afterPath="$PROJECT_DIR$/Server/routes/invites.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Server/server.js" beforeDir="false" afterPath="$PROJECT_DIR$/Server/server.js" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 4
+}]]></component>
+  <component name="ProjectId" id="39Nt36905KSIQ3R4RKERiVemFlQ" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "dart.analysis.tool.window.visible": "false",
+    "git-widget-placeholder": "main",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.lookFeel",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-30f59d01ecdd-2fc7cc6b9a17-intellij.indexing.shared.core-IU-253.30387.90" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="df14bbd3-a32a-473d-9d9c-929c2c13dead" name="Changes" comment="" />
+      <created>1770548156853</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1770548156853</updated>
+      <workItem from="1770548364637" duration="167000" />
+    </task>
+    <servers />
+  </component>
+</project>

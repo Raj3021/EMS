@@ -1,31 +1,42 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-
 import { pool } from "../db.js";
 
 const router = express.Router();
 
 router.post("/login", async (req, res) => {
   try {
-    const { tenantDomain, email, password } = req.body;
+    const { email, password } = req.body;
 
-    // 1. Validate input
-    if (!tenantDomain || !email || !password) {
-      return res.status(400).json({ message: "Tenant domain, email, and password are required" });
-    }
+    console.log('Login attempt:', { email, password });
 
-    // 2. Find tenant by domain
-    const tenantResult = await pool.query(
-      "SELECT id FROM tenants WHERE domain = $1 AND is_active = true",
-      [tenantDomain]
+    const tenant = await pool.query(
+      "SELECT tenant_id FROM users WHERE email = $1",
+      [email]
     );
 
-    if (tenantResult.rowCount === 0) {
-      return res.status(401).json({ message: "Invalid tenant domain" });
+    if (tenant.rowCount === 0) {
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const tenantId = tenantResult.rows[0].id;
+    const tenantDomain = tenant.rows[0].tenant_id;
+    console.log(tenantDomain);
+
+
+    // 1. Validate input
+    if (tenantDomain == undefined || !email || !password) {
+      // console.log("Missing fields:", { tenantDomain, email, password });
+      return res.status(400).json({ message: "Tenant domain, email, and password are required" });
+    }
+    
+
+    // 2. Find tenant by domain
+
+    // console.log("Error after this line");
+    // console.log(tenantResult);
+    
+    const tenantId = tenantDomain;
 
     // 3. Find user within the tenant
     const userResult = await pool.query(
@@ -99,88 +110,152 @@ router.post("/login", async (req, res) => {
 router.post("/accept-invite", async (req, res) => {
   const { token, password, confirmPassword } = req.body;
 
-  // Basic validation (expand with Zod/Joi later)
   if (!token || !password || !confirmPassword) {
-    return res.status(400).json({ error: "Token, password, and confirmPassword are required" });
+    return res.status(400).json({
+      error: "Token, password, and confirmPassword are required"
+    });
   }
+
   if (password !== confirmPassword) {
-    return res.status(400).json({ error: "Passwords do not match" });
+    return res.status(400).json({
+      error: "Passwords do not match"
+    });
   }
-  if (password.length < 8) { // Simple strength check; enhance as needed
-    return res.status(400).json({ error: "Password must be at least 8 characters" });
+
+  if (password.length < 8) {
+    return res.status(400).json({
+      error: "Password must be at least 8 characters long"
+    });
   }
 
   let client;
+
   try {
     client = await pool.connect();
     await client.query("BEGIN");
 
-    // Find the invite by token
-    const inviteQuery = `
-      SELECT * FROM public.invites
-      WHERE token = $1 AND expires_at > CURRENT_TIMESTAMP AND accepted_at IS NULL
-    `;
-    const inviteResult = await client.query(inviteQuery, [token]);
+    // 1️⃣ Validate invite
+    const inviteResult = await client.query(
+      `
+      SELECT *
+      FROM public.invites
+      WHERE token = $1
+        AND expires_at > CURRENT_TIMESTAMP
+        AND accepted_at IS NULL
+      `,
+      [token]
+    );
 
     if (inviteResult.rowCount === 0) {
       await client.query("ROLLBACK");
-      return res.status(401).json({ error: "Invalid, expired, or already used invite token" });
+      return res.status(401).json({
+        error: "Invalid, expired, or already accepted invite"
+      });
     }
 
     const invite = inviteResult.rows[0];
-    const { tenant_id, email, role_id } = invite;
+    const {
+      tenant_id,
+      email,
+      first_name,
+      last_name,
+      role_id
+    } = invite;
 
-    // Check if user already exists (shouldn't, but safety)
-    const userCheckQuery = `
-      SELECT id FROM public.users
+    // 2️⃣ Safety: check user does not already exist
+    const existingUser = await client.query(
+      `
+      SELECT id
+      FROM public.users
       WHERE tenant_id = $1 AND email = $2
-    `;
-    const userCheck = await client.query(userCheckQuery, [tenant_id, email]);
-    if (userCheck.rowCount > 0) {
+      `,
+      [tenant_id, email]
+    );
+
+    if (existingUser.rowCount > 0) {
       await client.query("ROLLBACK");
-      return res.status(409).json({ error: "User with this email already exists in the tenant" });
+      return res.status(409).json({
+        error: "User already exists for this tenant"
+      });
     }
 
-    // Hash the password
-    const saltRounds = 12; // Adjust as needed for security/performance
-    const password_hash = await bcrypt.hash(password, saltRounds);
+    // 3️⃣ Hash password
+    const password_hash = await bcrypt.hash(password, 12);
 
-    // Create the user
-    const createUserQuery = `
-      INSERT INTO public.users (tenant_id, email, password_hash, is_email_verified)
-      VALUES ($1, $2, $3, $4)
+    // 4️⃣ Create user
+    const userResult = await client.query(
+      `
+      INSERT INTO public.users (
+        tenant_id,
+        email,
+        password_hash,
+        is_email_verified,
+        is_active
+      )
+      VALUES ($1, $2, $3, true, true)
       RETURNING id
-    `;
-    const userResult = await client.query(createUserQuery, [tenant_id, email, password_hash, true]); // Assume verified via invite
+      `,
+      [tenant_id, email, password_hash]
+    );
+
     const user_id = userResult.rows[0].id;
 
-    // Assign the role (if specified in invite)
+    // 5️⃣ Assign role
     if (role_id) {
-      const assignRoleQuery = `
+      await client.query(
+        `
         INSERT INTO public.user_roles (user_id, role_id)
         VALUES ($1, $2)
-      `;
-      await client.query(assignRoleQuery, [user_id, role_id]);
+        `,
+        [user_id, role_id]
+      );
     }
 
-    // Mark invite as accepted
-    const updateInviteQuery = `
+    // 6️⃣ Create employee profile (INCOMPLETE)
+    await client.query(
+      `
+      INSERT INTO public.employees (
+        tenant_id,
+        user_id,
+        first_name,
+        last_name,
+        email,
+        profile_completed
+      )
+      VALUES ($1, $2, $3, $4, $5, false)
+      `,
+      [tenant_id, user_id, first_name, last_name, email]
+    );
+
+    // 7️⃣ Mark invite as accepted
+    await client.query(
+      `
       UPDATE public.invites
       SET accepted_at = CURRENT_TIMESTAMP
       WHERE id = $1
-    `;
-    await client.query(updateInviteQuery, [invite.id]);
+      `,
+      [invite.id]
+    );
 
     await client.query("COMMIT");
-    res.status(200).json({ message: "Password set successfully. You can now log in." });
+
+    // 8️⃣ Response → frontend must redirect to complete-profile
+    return res.status(200).json({
+      message: "Password set successfully. Please complete your profile.",
+      next: "COMPLETE_PROFILE"
+    });
 
   } catch (error) {
     if (client) await client.query("ROLLBACK");
-    console.error("Error accepting invite:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Accept invite error:", error);
+
+    return res.status(500).json({
+      error: "Internal server error"
+    });
   } finally {
     if (client) client.release();
   }
 });
+
 
 export default router;

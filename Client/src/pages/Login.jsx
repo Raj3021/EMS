@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Building2, Mail, Lock, Eye, EyeOff } from "lucide-react";
+// import axios from "axios";
+// import { useAuth } from "../context/AuthContext";
+import { authService } from "../services/authService";
+import { AuthProvider } from "../context/AuthContext";
+import { useEffect } from "react";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -8,10 +13,26 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      navigate("/", { replace: true }); // dashboard
+    }
+  }, [navigate]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Mock login - navigate to dashboard
-    navigate("/");
+
+    try {
+      await authService.login({ email, password });
+      navigate("/"); // dashboard
+    } catch (err) {
+      console.error(err);
+      console.log(email);
+      console.log(password);
+      alert("Invalid credentials");
+    }
   };
 
   return (
@@ -22,14 +43,17 @@ export default function Login() {
           <div className="w-12 h-12 rounded-xl bg-primary-foreground/20 flex items-center justify-center">
             <Building2 className="w-6 h-6 text-primary-foreground" />
           </div>
-          <span className="text-2xl font-bold text-primary-foreground">WorkHub</span>
+          <span className="text-2xl font-bold text-primary-foreground">
+            WorkHub
+          </span>
         </div>
         <div className="space-y-6">
           <h1 className="text-4xl font-bold text-primary-foreground leading-tight">
             Streamline your workforce management
           </h1>
           <p className="text-lg text-primary-foreground/80">
-            One platform for all your employee management needs. Track tasks, manage teams, and boost productivity.
+            One platform for all your employee management needs. Track tasks,
+            manage teams, and boost productivity.
           </p>
         </div>
         <p className="text-sm text-primary-foreground/60">
@@ -83,8 +107,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                   {showPassword ? (
                     <EyeOff className="w-5 h-5" />
                   ) : (
@@ -99,15 +122,16 @@ export default function Login() {
                 <input type="checkbox" className="rounded border-border" />
                 <span className="text-sm">Remember me</span>
               </label>
-              <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+              <Link
+                to="/forgot-password"
+                className="text-sm text-primary hover:underline">
                 Forgot password?
               </Link>
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
-            >
+              className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors">
               Sign in
             </button>
           </form>
@@ -115,7 +139,9 @@ export default function Login() {
           <div className="mt-6 text-center">
             <p className="text-muted-foreground">
               Don't have an account?{" "}
-              <Link to="/register" className="text-primary hover:underline font-medium">
+              <Link
+                to="/register"
+                className="text-primary hover:underline font-medium">
                 Register your company
               </Link>
             </p>

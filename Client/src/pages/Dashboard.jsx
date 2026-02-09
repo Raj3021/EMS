@@ -14,8 +14,20 @@ import {
 import { stats, activities, meetings } from "../data/mockData";
 import Sidebar from "../components/layouts/Sidebar";
 import TopNav from "../components/layouts/TopNav";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      navigate("/login", { replace: true });
+    }
+  }, [navigate]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
