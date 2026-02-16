@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { Building2, User, Shield, Bell, Palette, Globe } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Building2, User, Shield, Bell, Palette } from "lucide-react";
+import { settingsService } from "@/services/settingsService";
+import { useAuth } from "@/context/AuthContext";
 
 const tabs = [
   { id: "company", label: "Company", icon: Building2 },
@@ -11,21 +13,105 @@ const tabs = [
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState("company");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const { user } = useAuth();
+
+  // Form states
+  const [profile, setProfile] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    designation: "",
+    department: "",
+  });
+
+  const [company, setCompany] = useState({
+    name: "",
+    domain: "",
+  });
+
+  // Load settings on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+        const data = await settingsService.getSettings();
+        setProfile(data.profile);
+        setCompany(data.company);
+        setError(null);
+      } catch (err) {
+        console.error("Error loading settings:", err);
+        setError("Failed to load settings");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
+  // Handle profile form submit
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      await settingsService.updateProfile(profile);
+      setError(null);
+      // Show success message (you can add a toast here)
+      alert("Profile updated successfully!");
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      setError("Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Handle company form submit
+  const handleCompanySubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      await settingsService.updateCompany(company);
+      setError(null);
+      alert("Company settings updated successfully!");
+    } catch (err) {
+      console.error("Error updating company:", err);
+      setError("Failed to update company settings");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="space-y-6">
       {/* Page Header */}
-      <div className="mb-8">
+      <div>
         <h1 className="text-2xl font-bold text-foreground">Settings</h1>
         <p className="text-muted-foreground mt-1">
           Manage your account and company settings
         </p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
+      {/* Error Alert */}
+      {error && (
+        <div className="p-4 rounded-lg bg-destructive/10 text-destructive border border-destructive/20">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center h-96">
+          <p className="text-muted-foreground">Loading settings...</p>
+        </div>
+      ) : (
+        <div className="flex flex-col lg:flex-row gap-6">
         {/* Tabs Sidebar */}
         <div className="lg:w-64">
-          <nav className="bg-card border border-border rounded-lg p-2">
+          <nav className="dashboard-card p-2">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -45,24 +131,9 @@ export default function Settings() {
         {/* Content */}
         <div className="flex-1">
           {activeTab === "company" && (
-            <div className="bg-card border border-border rounded-lg p-6">
+            <div className="dashboard-card animate-fade-in">
               <h2 className="text-xl font-semibold mb-6">Company Settings</h2>
-              <form className="space-y-6">
-                <div className="flex items-center gap-6">
-                  <div className="w-20 h-20 rounded-xl bg-primary flex items-center justify-center text-primary-foreground text-2xl font-bold">
-                    WH
-                  </div>
-                  <div>
-                    <button
-                      type="button"
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 transition-colors">
-                      Change Logo
-                    </button>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Recommended: 200x200px, PNG or SVG
-                    </p>
-                  </div>
-                </div>
+              <form className="space-y-6" onSubmit={handleCompanySubmit}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">
@@ -70,59 +141,33 @@ export default function Settings() {
                     </label>
                     <input
                       type="text"
-                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      defaultValue="WorkHub Inc."
+                      className="input-field"
+                      value={company.name}
+                      onChange={(e) =>
+                        setCompany({ ...company, name: e.target.value })
+                      }
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">
-                      Industry
+                      Domain
                     </label>
-                    <select className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                      <option>Technology</option>
-                      <option>Finance</option>
-                      <option>Healthcare</option>
-                      <option>Education</option>
-                    </select>
+                    <input
+                      type="text"
+                      className="input-field"
+                      value={company.domain || ""}
+                      onChange={(e) =>
+                        setCompany({ ...company, domain: e.target.value })
+                      }
+                    />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Company Size
-                    </label>
-                    <select className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                      <option>1-10 employees</option>
-                      <option>11-50 employees</option>
-                      <option>51-200 employees</option>
-                      <option>201-500 employees</option>
-                      <option>500+ employees</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Timezone
-                    </label>
-                    <select className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                      <option>UTC-8 (Pacific Time)</option>
-                      <option>UTC-5 (Eastern Time)</option>
-                      <option>UTC+0 (GMT)</option>
-                      <option>UTC+1 (CET)</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Company Address
-                  </label>
-                  <textarea
-                    className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary h-20 resize-none"
-                    defaultValue="123 Tech Street, San Francisco, CA 94105"
-                  />
                 </div>
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
-                    Save Changes
+                    disabled={saving}
+                    className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {saving ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               </form>
@@ -130,24 +175,9 @@ export default function Settings() {
           )}
 
           {activeTab === "profile" && (
-            <div className="bg-card border border-border rounded-lg p-6">
+            <div className="dashboard-card animate-fade-in">
               <h2 className="text-xl font-semibold mb-6">Profile Settings</h2>
-              <form className="space-y-6">
-                <div className="flex items-center gap-6">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xl font-bold">
-                    JD
-                  </div>
-                  <div>
-                    <button
-                      type="button"
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 transition-colors">
-                      Upload Photo
-                    </button>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      JPG, PNG, or GIF. Max 2MB.
-                    </p>
-                  </div>
-                </div>
+              <form className="space-y-6" onSubmit={handleProfileSubmit}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">
@@ -155,8 +185,11 @@ export default function Settings() {
                     </label>
                     <input
                       type="text"
-                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      defaultValue="John"
+                      className="input-field"
+                      value={profile.firstName || ""}
+                      onChange={(e) =>
+                        setProfile({ ...profile, firstName: e.target.value })
+                      }
                     />
                   </div>
                   <div>
@@ -165,8 +198,11 @@ export default function Settings() {
                     </label>
                     <input
                       type="text"
-                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      defaultValue="Doe"
+                      className="input-field"
+                      value={profile.lastName || ""}
+                      onChange={(e) =>
+                        setProfile({ ...profile, lastName: e.target.value })
+                      }
                     />
                   </div>
                   <div>
@@ -175,8 +211,9 @@ export default function Settings() {
                     </label>
                     <input
                       type="email"
-                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      defaultValue="john.doe@company.com"
+                      className="input-field"
+                      value={profile.email || ""}
+                      disabled
                     />
                   </div>
                   <div>
@@ -185,19 +222,24 @@ export default function Settings() {
                     </label>
                     <input
                       type="tel"
-                      className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      defaultValue="+1 (555) 123-4567"
+                      className="input-field"
+                      value={profile.phone || ""}
+                      onChange={(e) =>
+                        setProfile({ ...profile, phone: e.target.value })
+                      }
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">
-                      Role
+                      Designation
                     </label>
                     <input
                       type="text"
-                      className="w-full px-4 py-2 bg-background border border-border rounded-lg opacity-60"
-                      defaultValue="Admin"
-                      disabled
+                      className="input-field"
+                      value={profile.designation || ""}
+                      onChange={(e) =>
+                        setProfile({ ...profile, designation: e.target.value })
+                      }
                     />
                   </div>
                   <div>
@@ -206,17 +248,20 @@ export default function Settings() {
                     </label>
                     <input
                       type="text"
-                      className="w-full px-4 py-2 bg-background border border-border rounded-lg opacity-60"
-                      defaultValue="Engineering"
-                      disabled
+                      className="input-field"
+                      value={profile.department || ""}
+                      onChange={(e) =>
+                        setProfile({ ...profile, department: e.target.value })
+                      }
                     />
                   </div>
                 </div>
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
-                    Save Changes
+                    disabled={saving}
+                    className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {saving ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               </form>
@@ -224,7 +269,7 @@ export default function Settings() {
           )}
 
           {activeTab === "security" && (
-            <div className="bg-card border border-border rounded-lg p-6">
+            <div className="dashboard-card animate-fade-in">
               <h2 className="text-xl font-semibold mb-6">Security Settings</h2>
               <div className="space-y-6">
                 <div className="p-4 rounded-xl bg-muted/30">
@@ -247,28 +292,19 @@ export default function Settings() {
                       <label className="block text-sm font-medium mb-2">
                         Current Password
                       </label>
-                      <input
-                        type="password"
-                        className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
+                      <input type="password" className="input-field" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">
                         New Password
                       </label>
-                      <input
-                        type="password"
-                        className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
+                      <input type="password" className="input-field" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">
                         Confirm New Password
                       </label>
-                      <input
-                        type="password"
-                        className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
+                      <input type="password" className="input-field" />
                     </div>
                     <button className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
                       Update Password
@@ -277,13 +313,13 @@ export default function Settings() {
                 </div>
                 <div>
                   <h3 className="font-medium mb-4">Role-Based Access</h3>
-                  <div className="overflow-x-auto border border-border rounded-lg">
+                  <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead className="bg-muted">
-                        <tr>
-                          <th className="text-left p-3 font-medium">Role</th>
-                          <th className="text-left p-3 font-medium">Users</th>
-                          <th className="text-left p-3 font-medium">
+                      <thead>
+                        <tr className="table-header">
+                          <th className="text-left p-3 rounded-l-lg">Role</th>
+                          <th className="text-left p-3">Users</th>
+                          <th className="text-left p-3 rounded-r-lg">
                             Permissions
                           </th>
                         </tr>
@@ -293,7 +329,7 @@ export default function Settings() {
                           <td className="p-3 font-medium">Admin</td>
                           <td className="p-3 text-muted-foreground">3 users</td>
                           <td className="p-3">
-                            <span className="px-2 py-1 bg-green-500/10 text-green-500 rounded text-xs font-medium">
+                            <span className="badge badge-success">
                               Full Access
                             </span>
                           </td>
@@ -304,7 +340,7 @@ export default function Settings() {
                             12 users
                           </td>
                           <td className="p-3">
-                            <span className="px-2 py-1 bg-primary/10 text-primary rounded text-xs font-medium">
+                            <span className="badge badge-primary">
                               Limited Access
                             </span>
                           </td>
@@ -315,7 +351,7 @@ export default function Settings() {
                             141 users
                           </td>
                           <td className="p-3">
-                            <span className="px-2 py-1 bg-muted text-muted-foreground rounded text-xs font-medium">
+                            <span className="badge badge-muted">
                               Basic Access
                             </span>
                           </td>
@@ -329,7 +365,7 @@ export default function Settings() {
           )}
 
           {activeTab === "notifications" && (
-            <div className="bg-card border border-border rounded-lg p-6">
+            <div className="dashboard-card animate-fade-in">
               <h2 className="text-xl font-semibold mb-6">
                 Notification Settings
               </h2>
@@ -381,7 +417,7 @@ export default function Settings() {
           )}
 
           {activeTab === "appearance" && (
-            <div className="bg-card border border-border rounded-lg p-6">
+            <div className="dashboard-card animate-fade-in">
               <h2 className="text-xl font-semibold mb-6">
                 Appearance Settings
               </h2>
@@ -405,7 +441,7 @@ export default function Settings() {
                 </div>
                 <div>
                   <h3 className="font-medium mb-4">Language</h3>
-                  <select className="w-full max-w-xs px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                  <select className="input-field max-w-xs">
                     <option>English (US)</option>
                     <option>English (UK)</option>
                     <option>Spanish</option>
@@ -418,6 +454,7 @@ export default function Settings() {
           )}
         </div>
       </div>
-    </div>
+      )}  
+    </div>  
   );
 }

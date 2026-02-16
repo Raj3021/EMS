@@ -1,7 +1,3 @@
-import * as React from "react";
+import { useToast, toast } from "@/hooks/use-toast";
 
-const ToastContext = React.createContext({ toasts: [], setToasts: () => {} });
-
-export function useToast() {
-  return React.useContext(ToastContext);
-}
+export { useToast, toast };

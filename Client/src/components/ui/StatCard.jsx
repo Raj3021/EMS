@@ -1,5 +1,3 @@
-import React from "react";
-
 export function StatCard({
   title,
   value,
@@ -49,5 +47,3 @@ export function StatCard({
     </div>
   );
 }
-
-export default StatCard;

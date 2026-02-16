@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Building2,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -28,13 +29,38 @@ const navItems = [
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
-function Sidebar({ collapsed, onToggle }) {
+export function Sidebar({ collapsed, onToggle }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const displayName =
+    user?.name ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    user?.email ||
+    "User";
+  const roles = Array.isArray(user?.roles)
+    ? user.roles
+    : user?.role
+      ? [user.role]
+      : [];
+  const isAdmin = roles.some(
+    (role) => role?.toLowerCase && role.toLowerCase() === "admin",
+  );
+  const primaryRole = user?.role || roles[0] || "Member";
+  const tenantName = user?.tenantName || user?.tenant?.name || "";
+  const roleLabel = isAdmin ? "Admin" : primaryRole;
+  const subtitle = isAdmin && tenantName ? `${tenantName} - Admin` : roleLabel;
+  const initials = displayName
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-full bg-sidebar border-r border-sidebar-border transition-all duration-300 z-40 ${
+      className={`fixed left-0 top-0 h-svh bg-sidebar border-r border-sidebar-border transition-all duration-300 z-40 flex flex-col overflow-hidden ${
         collapsed ? "w-20" : "w-64"
       }`}>
       {/* Logo */}
@@ -61,7 +87,7 @@ function Sidebar({ collapsed, onToggle }) {
       </div>
 
       {/* Navigation */}
-      <nav className="p-4 space-y-1">
+      <nav className="flex-1 min-h-0 p-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
@@ -77,16 +103,26 @@ function Sidebar({ collapsed, onToggle }) {
         })}
       </nav>
 
-      {/* User section */}
+      {/* User section at bottom */}
       {!collapsed && (
-        <div className="absolute bottom-4 left-4 right-4">
+        <div className="mt-auto p-4">
           <div className="flex items-center gap-3 p-3 rounded-lg bg-sidebar-accent">
-            <div className="avatar avatar-sm">JD</div>
+            {user?.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={displayName}
+                className="avatar avatar-sm"
+              />
+            ) : (
+              <div className="avatar avatar-sm">{initials}</div>
+            )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
-                John Doe
+                {displayName}
               </p>
-              <p className="text-xs text-muted-foreground truncate">Admin</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {subtitle}
+              </p>
             </div>
           </div>
         </div>
@@ -94,5 +130,3 @@ function Sidebar({ collapsed, onToggle }) {
     </aside>
   );
 }
-
-export default Sidebar;

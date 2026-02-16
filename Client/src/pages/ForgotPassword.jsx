@@ -53,7 +53,7 @@ export default function ForgotPassword() {
           </>
         ) : (
           <div className="text-center">
-            <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-success/10 flex items-center justify-center">
               <CheckCircle className="w-8 h-8 text-success" />
             </div>
             <h2 className="text-2xl font-bold mb-2">Check your email</h2>

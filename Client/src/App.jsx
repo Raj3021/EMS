@@ -1,8 +1,9 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Layout from "./components/Layout";
+import { DashboardLayout } from "./components/layouts/DashboardLayout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
+import AcceptInvite from "./pages/AcceptInvite";
 import Dashboard from "./pages/Dashboard";
 import Analytics from "./pages/Analytics";
 import Employees from "./pages/Employees";
@@ -15,6 +16,7 @@ import Notes from "./pages/Notes";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import "./index.css";
+import ProtectedRoute from "./pages/ProtectedRoute";
 
 function App() {
   return (
@@ -24,86 +26,87 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/accept-invite" element={<AcceptInvite />} />
 
         {/* Protected Routes (With Layout) */}
         <Route
           path="/"
           element={
-            <Layout>
+            <DashboardLayout>
               <Dashboard />
-            </Layout>
+            </DashboardLayout>
           }
         />
         <Route
           path="/analytics"
           element={
-            <Layout>
+            <DashboardLayout>
               <Analytics />
-            </Layout>
+            </DashboardLayout>
           }
         />
         <Route
           path="/employees"
           element={
-            <Layout>
+            <DashboardLayout>
               <Employees />
-            </Layout>
+            </DashboardLayout>
           }
         />
         <Route
           path="/tasks"
           element={
-            <Layout>
+            <DashboardLayout>
               <Tasks />
-            </Layout>
+            </DashboardLayout>
           }
         />
         <Route
           path="/meetings"
           element={
-            <Layout>
+            <DashboardLayout>
               <Meetings />
-            </Layout>
+            </DashboardLayout>
           }
         />
         <Route
           path="/files"
           element={
-            <Layout>
+            <DashboardLayout>
               <Files />
-            </Layout>
+            </DashboardLayout>
           }
         />
         <Route
           path="/chat"
           element={
-            <Layout>
+            <DashboardLayout>
               <Chat />
-            </Layout>
+            </DashboardLayout>
           }
         />
         <Route
           path="/attendance"
           element={
-            <Layout>
+            <DashboardLayout>
               <Attendance />
-            </Layout>
+            </DashboardLayout>
           }
         />
         <Route
           path="/notes"
           element={
-            <Layout>
+            <DashboardLayout>
               <Notes />
-            </Layout>
+            </DashboardLayout>
           }
         />
         <Route
           path="/settings"
           element={
-            <Layout>
+            <DashboardLayout>
               <Settings />
-            </Layout>
+            </DashboardLayout>
           }
         />
 

@@ -2,316 +2,260 @@ import { useState } from "react";
 import {
   Calendar,
   Clock,
-  TrendingUp,
-  Users,
-  CheckCircle,
-  XCircle,
+  Plus,
+  Check,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
+import { leaveRequests } from "@/data/mockData";
+
+const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const currentMonth = new Date().toLocaleString("default", {
+  month: "long",
+  year: "numeric",
+});
+
+const generateCalendarDays = () => {
+  const days = [];
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+  for (let i = 0; i < firstDay.getDay(); i++) {
+    days.push({ day: null, status: null });
+  }
+
+  for (let i = 1; i <= lastDay.getDate(); i++) {
+    const status =
+      i < today.getDate()
+        ? i % 6 === 0 || i % 7 === 0
+          ? "weekend"
+          : "present"
+        : i === today.getDate()
+          ? "today"
+          : "future";
+    days.push({ day: i, status });
+  }
+
+  return days;
+};
 
 export default function Attendance() {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [view, setView] = useState("month"); // month, week, day
-
-  // Generate calendar days for current month
-  const generateCalendarDays = () => {
-    const year = selectedDate.getFullYear();
-    const month = selectedDate.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-
-    const days = [];
-
-    // Add empty cells for days before month starts
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
-    }
-
-    // Add actual days
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(day);
-    }
-
-    return days;
-  };
-
-  const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-
-  const attendanceData = [
-    {
-      id: 1,
-      name: "John Doe",
-      status: "present",
-      checkIn: "09:00 AM",
-      checkOut: "05:30 PM",
-    },
-    {
-      id: 2,
-      name: "Jane Smith",
-      status: "present",
-      checkIn: "08:45 AM",
-      checkOut: "05:15 PM",
-    },
-    {
-      id: 3,
-      name: "Mike Johnson",
-      status: "absent",
-      checkIn: "-",
-      checkOut: "-",
-    },
-    {
-      id: 4,
-      name: "Sarah Williams",
-      status: "present",
-      checkIn: "09:15 AM",
-      checkOut: "05:45 PM",
-    },
-    {
-      id: 5,
-      name: "Tom Brown",
-      status: "late",
-      checkIn: "10:30 AM",
-      checkOut: "06:00 PM",
-    },
-  ];
-
-  const stats = {
-    totalEmployees: 156,
-    present: 142,
-    absent: 8,
-    late: 6,
-    avgAttendance: "91%",
-  };
-
-  const goToPreviousMonth = () => {
-    setSelectedDate(
-      new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1)
-    );
-  };
-
-  const goToNextMonth = () => {
-    setSelectedDate(
-      new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1)
-    );
-  };
-
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
   const calendarDays = generateCalendarDays();
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="px-8 py-4">
-          <h1 className="text-2xl font-bold text-foreground">Attendance</h1>
-          <p className="text-sm text-muted-foreground">
-            Track employee attendance and work hours
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">
+            Attendance & Leave
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Track attendance and manage leave requests
           </p>
         </div>
-      </header>
+        <button
+          onClick={() => setShowLeaveModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors">
+          <Plus className="w-4 h-4" />
+          Request Leave
+        </button>
+      </div>
 
-      {/* Main Content */}
-      <main className="p-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <div className="bg-card border border-border rounded-lg p-6">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Total Employees</p>
-              <Users className="w-5 h-5 text-primary" />
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="dashboard-card">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-success/10 rounded-xl">
+              <Check className="w-5 h-5 text-success" />
             </div>
-            <p className="text-2xl font-bold text-foreground">
-              {stats.totalEmployees}
-            </p>
-          </div>
-
-          <div className="bg-card border border-border rounded-lg p-6">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Present</p>
-              <CheckCircle className="w-5 h-5 text-green-500" />
+            <div>
+              <p className="text-sm text-muted-foreground">Present Days</p>
+              <p className="text-2xl font-bold">18</p>
             </div>
-            <p className="text-2xl font-bold text-green-500">{stats.present}</p>
-          </div>
-
-          <div className="bg-card border border-border rounded-lg p-6">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Absent</p>
-              <XCircle className="w-5 h-5 text-red-500" />
-            </div>
-            <p className="text-2xl font-bold text-red-500">{stats.absent}</p>
-          </div>
-
-          <div className="bg-card border border-border rounded-lg p-6">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Late</p>
-              <Clock className="w-5 h-5 text-orange-500" />
-            </div>
-            <p className="text-2xl font-bold text-orange-500">{stats.late}</p>
-          </div>
-
-          <div className="bg-card border border-border rounded-lg p-6">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Avg Attendance</p>
-              <TrendingUp className="w-5 h-5 text-blue-500" />
-            </div>
-            <p className="text-2xl font-bold text-blue-500">
-              {stats.avgAttendance}
-            </p>
           </div>
         </div>
+        <div className="dashboard-card">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-warning/10 rounded-xl">
+              <Clock className="w-5 h-5 text-warning" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Late Arrivals</p>
+              <p className="text-2xl font-bold">2</p>
+            </div>
+          </div>
+        </div>
+        <div className="dashboard-card">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-primary/10 rounded-xl">
+              <Calendar className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Leave Balance</p>
+              <p className="text-2xl font-bold">12 days</p>
+            </div>
+          </div>
+        </div>
+        <div className="dashboard-card">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-accent/10 rounded-xl">
+              <X className="w-5 h-5 text-accent" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Absences</p>
+              <p className="text-2xl font-bold">1</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        {/* Calendar and List */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Calendar */}
-          <div className="lg:col-span-1 bg-card border border-border rounded-lg p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-foreground">
-                {monthNames[selectedDate.getMonth()]}{" "}
-                {selectedDate.getFullYear()}
-              </h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={goToPreviousMonth}
-                  className="p-1 hover:bg-accent rounded transition-colors">
-                  ←
-                </button>
-                <button
-                  onClick={goToNextMonth}
-                  className="p-1 hover:bg-accent rounded transition-colors">
-                  →
-                </button>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Calendar */}
+        <div className="lg:col-span-2 dashboard-card">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold">{currentMonth}</h2>
+            <div className="flex items-center gap-2">
+              <button className="p-2 rounded-lg hover:bg-muted transition-colors">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button className="p-2 rounded-lg hover:bg-muted transition-colors">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Calendar Grid */}
+          <div className="grid grid-cols-7 gap-2">
+            {daysOfWeek.map((day) => (
+              <div
+                key={day}
+                className="text-center text-sm font-medium text-muted-foreground py-2">
+                {day}
               </div>
-            </div>
-
-            {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-2">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <div
-                  key={day}
-                  className="text-center text-xs font-medium text-muted-foreground py-2">
-                  {day}
-                </div>
-              ))}
-
-              {calendarDays.map((day, index) => (
-                <div
-                  key={index}
-                  className={`aspect-square flex items-center justify-center text-sm rounded-lg transition-colors \${
-                    day === null
-                      ? ""
-                      : day === new Date().getDate() &&
-                        selectedDate.getMonth() === new Date().getMonth()
+            ))}
+            {calendarDays.map((item, index) => (
+              <div
+                key={index}
+                className={`aspect-square flex items-center justify-center rounded-lg text-sm ${
+                  item.day === null
+                    ? ""
+                    : item.status === "today"
                       ? "bg-primary text-primary-foreground font-bold"
-                      : "hover:bg-accent cursor-pointer"
-                  }`}>
-                  {day}
-                </div>
-              ))}
-            </div>
+                      : item.status === "present"
+                        ? "bg-success/10 text-success"
+                        : item.status === "weekend"
+                          ? "bg-muted text-muted-foreground"
+                          : "text-foreground hover:bg-muted cursor-pointer"
+                }`}>
+                {item.day}
+              </div>
+            ))}
           </div>
 
-          {/* Today's Attendance List */}
-          <div className="lg:col-span-2 bg-card border border-border rounded-lg">
-            <div className="p-6 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground">
-                Today's Attendance
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {new Date().toLocaleDateString("en-US", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </p>
+          {/* Legend */}
+          <div className="flex items-center gap-6 mt-6 pt-6 border-t border-border">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-success/30" />
+              <span className="text-sm text-muted-foreground">Present</span>
             </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="border-b border-border">
-                  <tr>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                      Employee
-                    </th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                      Status
-                    </th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                      Check In
-                    </th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                      Check Out
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {attendanceData.map((record) => (
-                    <tr
-                      key={record.id}
-                      className="border-b border-border hover:bg-accent transition-colors">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <span className="text-sm font-medium text-primary">
-                              {record.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")}
-                            </span>
-                          </div>
-                          <span className="font-medium text-foreground">
-                            {record.name}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium \${
-                            record.status === "present"
-                              ? "bg-green-500/10 text-green-500"
-                              : record.status === "absent"
-                              ? "bg-red-500/10 text-red-500"
-                              : "bg-orange-500/10 text-orange-500"
-                          }`}>
-                          {record.status === "present" && (
-                            <CheckCircle className="w-3 h-3" />
-                          )}
-                          {record.status === "absent" && (
-                            <XCircle className="w-3 h-3" />
-                          )}
-                          {record.status === "late" && (
-                            <Clock className="w-3 h-3" />
-                          )}
-                          {record.status.charAt(0).toUpperCase() +
-                            record.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="p-4 text-sm text-muted-foreground">
-                        {record.checkIn}
-                      </td>
-                      <td className="p-4 text-sm text-muted-foreground">
-                        {record.checkOut}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-primary" />
+              <span className="text-sm text-muted-foreground">Today</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-muted" />
+              <span className="text-sm text-muted-foreground">Weekend</span>
             </div>
           </div>
         </div>
-      </main>
+
+        {/* Leave Requests */}
+        <div className="dashboard-card">
+          <h2 className="text-lg font-semibold mb-6">Leave Requests</h2>
+          <div className="space-y-4">
+            {leaveRequests.map((request) => (
+              <div key={request.id} className="p-4 rounded-xl bg-muted/30">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium">{request.employee}</span>
+                  <span
+                    className={`badge ${
+                      request.status === "approved"
+                        ? "badge-success"
+                        : request.status === "pending"
+                          ? "badge-warning"
+                          : "badge-muted"
+                    }`}>
+                    {request.status}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-2">
+                  {request.type}
+                </p>
+                <p className="text-sm">
+                  {request.startDate} - {request.endDate}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Leave Request Modal */}
+      <Modal
+        isOpen={showLeaveModal}
+        onClose={() => setShowLeaveModal(false)}
+        title="Request Leave"
+        size="lg">
+        <form className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Leave Type</label>
+            <select className="input-field">
+              <option value="">Select leave type</option>
+              <option value="annual">Annual Leave</option>
+              <option value="sick">Sick Leave</option>
+              <option value="personal">Personal Leave</option>
+              <option value="wfh">Work From Home</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Start Date
+              </label>
+              <input type="date" className="input-field" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">End Date</label>
+              <input type="date" className="input-field" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Reason</label>
+            <textarea
+              className="input-field h-24 resize-none"
+              placeholder="Explain the reason for your leave request..."
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowLeaveModal(false)}
+              className="px-4 py-2 rounded-lg border border-border hover:bg-muted transition-colors">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+              Submit Request
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -1,198 +1,194 @@
 import { useState } from "react";
 import {
-  Search,
-  Upload,
-  FolderPlus,
-  File,
+  FolderOpen,
   FileText,
-  Image,
+  Upload,
+  Search,
+  Grid,
+  List,
   MoreVertical,
   Download,
   Trash2,
+  Eye,
+  File,
+  Image,
 } from "lucide-react";
+import { files } from "@/data/mockData";
 
-const files = [
-  {
-    id: 1,
-    name: "Project Proposal.pdf",
-    size: "2.4 MB",
-    modified: "2024-01-15",
-    type: "pdf",
-    icon: FileText,
-  },
-  {
-    id: 2,
-    name: "Design Mockups.fig",
-    size: "5.1 MB",
-    modified: "2024-01-14",
-    type: "design",
-    icon: Image,
-  },
-  {
-    id: 3,
-    name: "Meeting Notes.docx",
-    size: "156 KB",
-    modified: "2024-01-13",
-    type: "document",
-    icon: FileText,
-  },
-  {
-    id: 4,
-    name: "Budget 2024.xlsx",
-    size: "890 KB",
-    modified: "2024-01-12",
-    type: "spreadsheet",
-    icon: File,
-  },
-  {
-    id: 5,
-    name: "Team Photo.jpg",
-    size: "3.2 MB",
-    modified: "2024-01-11",
-    type: "image",
-    icon: Image,
-  },
-  {
-    id: 6,
-    name: "Code Review.txt",
-    size: "45 KB",
-    modified: "2024-01-10",
-    type: "text",
-    icon: FileText,
-  },
-];
+const getFileIcon = (type) => {
+  switch (type) {
+    case "folder":
+      return <FolderOpen className="w-6 h-6 text-warning" />;
+    case "pdf":
+      return <FileText className="w-6 h-6 text-destructive" />;
+    case "excel":
+      return <File className="w-6 h-6 text-success" />;
+    case "word":
+      return <FileText className="w-6 h-6 text-primary" />;
+    case "figma":
+      return <Image className="w-6 h-6 text-accent" />;
+    default:
+      return <File className="w-6 h-6 text-muted-foreground" />;
+  }
+};
 
 export default function Files() {
-  const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState("grid");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showMenu, setShowMenu] = useState(null);
 
   const filteredFiles = files.filter((file) =>
-    file.name.toLowerCase().includes(searchQuery.toLowerCase())
+    file.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Files</h1>
           <p className="text-muted-foreground mt-1">
-            Manage and organize your files
+            Manage and organize your documents
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors">
-            <FolderPlus className="w-4 h-4" />
-            New Folder
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
-            <Upload className="w-4 h-4" />
-            Upload
-          </button>
+        <button className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors">
+          <Upload className="w-4 h-4" />
+          Upload Files
+        </button>
+      </div>
+
+      {/* Search and View Toggle */}
+      <div className="dashboard-card">
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="relative flex-1 w-full sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search files..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input-field pl-10"
+            />
+          </div>
+          <div className="flex items-center gap-2 p-1 bg-muted rounded-lg">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === "grid"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}>
+              <Grid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === "list"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}>
+              <List className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Search & View Toggle */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search files..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-        </div>
-        <div className="flex items-center gap-2 p-1 bg-muted rounded-lg">
-          <button
-            onClick={() => setViewMode("grid")}
-            className={`px-3 py-1.5 rounded text-sm ${
-              viewMode === "grid" ? "bg-card shadow-sm" : ""
-            }`}>
-            Grid
-          </button>
-          <button
-            onClick={() => setViewMode("list")}
-            className={`px-3 py-1.5 rounded text-sm ${
-              viewMode === "list" ? "bg-card shadow-sm" : ""
-            }`}>
-            List
-          </button>
-        </div>
-      </div>
-
-      {/* Files Grid/List */}
+      {/* Files Grid */}
       {viewMode === "grid" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {filteredFiles.map((file) => (
             <div
               key={file.id}
-              className="bg-card border border-border rounded-lg p-4 hover:shadow-lg transition-shadow">
-              <div className="flex items-start justify-between mb-3">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <file.icon className="w-6 h-6 text-primary" />
+              className="dashboard-card p-4 text-center hover:border-primary/30 cursor-pointer relative group">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMenu(showMenu === file.id ? null : file.id);
+                }}
+                className="absolute top-2 right-2 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-muted transition-all">
+                <MoreVertical className="w-4 h-4 text-muted-foreground" />
+              </button>
+              {showMenu === file.id && (
+                <div className="absolute top-8 right-2 w-40 bg-card rounded-xl border border-border shadow-soft-lg z-10 animate-fade-in">
+                  <div className="p-2">
+                    <button className="w-full p-2 rounded-lg text-left text-sm hover:bg-muted transition-colors flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      View
+                    </button>
+                    <button className="w-full p-2 rounded-lg text-left text-sm hover:bg-muted transition-colors flex items-center gap-2">
+                      <Download className="w-4 h-4" />
+                      Download
+                    </button>
+                    <button className="w-full p-2 rounded-lg text-left text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2">
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                  </div>
                 </div>
-                <button className="p-1 hover:bg-accent rounded transition-colors">
-                  <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                </button>
+              )}
+              <div className="w-12 h-12 mx-auto mb-3 flex items-center justify-center bg-muted rounded-xl">
+                {getFileIcon(file.type)}
               </div>
-              <h3 className="font-medium mb-1 truncate">{file.name}</h3>
-              <p className="text-sm text-muted-foreground mb-3">{file.size}</p>
-              <div className="flex items-center justify-between pt-3 border-t border-border">
-                <span className="text-xs text-muted-foreground">
-                  {file.modified}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button className="p-1.5 hover:bg-accent rounded transition-colors">
-                    <Download className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                  <button className="p-1.5 hover:bg-accent rounded transition-colors">
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </button>
-                </div>
-              </div>
+              <p className="font-medium text-sm truncate">{file.name}</p>
+              <p className="text-xs text-muted-foreground mt-1">{file.size}</p>
             </div>
           ))}
+
+          {/* Upload Card */}
+          <button className="dashboard-card p-4 border-dashed border-2 flex flex-col items-center justify-center hover:border-primary/50 hover:bg-muted/30 transition-colors">
+            <div className="w-12 h-12 mx-auto mb-3 flex items-center justify-center bg-muted rounded-full">
+              <Upload className="w-5 h-5 text-muted-foreground" />
+            </div>
+            <p className="font-medium text-sm text-muted-foreground">Upload</p>
+          </button>
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-muted">
-              <tr>
-                <th className="text-left p-4 font-medium">Name</th>
-                <th className="text-left p-4 font-medium">Size</th>
-                <th className="text-left p-4 font-medium">Modified</th>
-                <th className="text-left p-4 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredFiles.map((file) => (
-                <tr
-                  key={file.id}
-                  className="border-b border-border last:border-0 hover:bg-accent transition-colors">
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <file.icon className="w-5 h-5 text-primary" />
-                      <span className="font-medium">{file.name}</span>
-                    </div>
-                  </td>
-                  <td className="p-4 text-muted-foreground">{file.size}</td>
-                  <td className="p-4 text-muted-foreground">{file.modified}</td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <button className="p-1.5 hover:bg-muted rounded transition-colors">
-                        <Download className="w-4 h-4 text-muted-foreground" />
-                      </button>
-                      <button className="p-1.5 hover:bg-muted rounded transition-colors">
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </button>
-                    </div>
-                  </td>
+        <div className="dashboard-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="table-header">
+                  <th className="text-left p-4 rounded-l-lg">Name</th>
+                  <th className="text-left p-4">Owner</th>
+                  <th className="text-left p-4">Modified</th>
+                  <th className="text-left p-4">Size</th>
+                  <th className="text-right p-4 rounded-r-lg">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredFiles.map((file) => (
+                  <tr
+                    key={file.id}
+                    className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        {getFileIcon(file.type)}
+                        <span className="font-medium">{file.name}</span>
+                      </div>
+                    </td>
+                    <td className="p-4 text-muted-foreground">{file.owner}</td>
+                    <td className="p-4 text-muted-foreground">
+                      {file.modified}
+                    </td>
+                    <td className="p-4 text-muted-foreground">{file.size}</td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <button className="p-2 rounded-lg hover:bg-muted transition-colors">
+                          <Eye className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                        <button className="p-2 rounded-lg hover:bg-muted transition-colors">
+                          <Download className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                        <button className="p-2 rounded-lg hover:bg-destructive/10 transition-colors">
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

@@ -20,7 +20,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const data = await authService.login(email, password);
+      const data = await authService.login({ email, password });
       setUser(data.user);
       return data;
     } catch (error) {
@@ -34,7 +34,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
   }
 
   return (

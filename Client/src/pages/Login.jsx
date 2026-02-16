@@ -29,8 +29,6 @@ export default function Login() {
       navigate("/"); // dashboard
     } catch (err) {
       console.error(err);
-      console.log(email);
-      console.log(password);
       alert("Invalid credentials");
     }
   };

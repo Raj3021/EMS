@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { pool } from "../db.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import requirePermission from "../middleware/permissionMiddleware.js";
+import { sendInviteEmail } from "../services/emailService.js";
 
 const router = express.Router();
 
@@ -16,31 +17,102 @@ router.post(
   requirePermission("invite_user"),
   async (req, res) => {
     try {
-      const { firstName, lastName, email, roleId } = req.body;
+      const { firstName, lastName, email, roleId, role, department } = req.body;
 
       // ✅ Validation
-      if (!firstName || !email || !roleId) {
+      if (!firstName || !email || (!roleId && !role)) {
         return res.status(400).json({
-          error: "firstName, email, and roleId are required"
+          error: "firstName, email, and role are required",
         });
       }
 
       const tenantId = req.user.tenantId;
       const invitedBy = req.user.userId;
 
-      // Prevent duplicate invites/users
+      // Prevent duplicate users
       const existing = await pool.query(
         `
         SELECT 1
         FROM users
         WHERE tenant_id = $1 AND email = $2
         `,
-        [tenantId, email]
+        [tenantId, email],
       );
 
       if (existing.rowCount > 0) {
         return res.status(409).json({
-          error: "User with this email already exists"
+          error: "User with this email already exists",
+        });
+      }
+
+      // Prevent duplicate active invites
+      const existingInvite = await pool.query(
+        `
+        SELECT 1
+        FROM invites
+        WHERE tenant_id = $1 AND email = $2
+          AND accepted_at IS NULL
+          AND expires_at > CURRENT_TIMESTAMP
+        `,
+        [tenantId, email],
+      );
+
+      if (existingInvite.rowCount > 0) {
+        return res.status(409).json({
+          error: "An active invite already exists for this email",
+        });
+      }
+
+      const allowedRoles = ["manager", "employee"];
+      let resolvedRoleId = roleId || null;
+      let resolvedRoleName = role ? role.toLowerCase() : null;
+
+      if (resolvedRoleId) {
+        const roleResult = await pool.query(
+          `
+          SELECT id, name
+          FROM roles
+          WHERE id = $1 AND (tenant_id = $2 OR tenant_id IS NULL)
+          `,
+          [resolvedRoleId, tenantId],
+        );
+
+        if (roleResult.rowCount === 0) {
+          return res.status(400).json({
+            error: "Invalid roleId",
+          });
+        }
+
+        resolvedRoleName = roleResult.rows[0].name;
+      } else {
+        const roleResult = await pool.query(
+          `
+          SELECT id, name
+          FROM roles
+          WHERE name = $1 AND (tenant_id = $2 OR tenant_id IS NULL)
+          `,
+          [resolvedRoleName, tenantId],
+        );
+
+        if (roleResult.rowCount === 0) {
+          return res.status(400).json({
+            error: "Invalid role. Use manager or employee.",
+          });
+        }
+
+        resolvedRoleId = roleResult.rows[0].id;
+        resolvedRoleName = roleResult.rows[0].name;
+      }
+
+      if (!allowedRoles.includes(resolvedRoleName)) {
+        return res.status(400).json({
+          error: "Role must be manager or employee",
+        });
+      }
+
+      if (resolvedRoleName === "employee" && !department) {
+        return res.status(400).json({
+          error: "department is required for employee role",
         });
       }
 
@@ -59,37 +131,45 @@ router.post(
           first_name,
           last_name,
           role_id,
+          department,
           token,
           expires_at,
           invited_by
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         `,
         [
           tenantId,
           email,
           firstName,
           lastName || null,
-          roleId,
+          resolvedRoleId,
+          department || null,
           token,
           expiresAt,
-          invitedBy
-        ]
+          invitedBy,
+        ],
       );
 
       // 4️⃣ Invite link
-      const inviteLink = `http://localhost:3000/accept-invite?token=${token}`;
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:8080";
+      const inviteLink = `${frontendUrl}/accept-invite?token=${token}`;
+
+      await sendInviteEmail({
+        to: email,
+        firstName,
+        inviteLink,
+      });
 
       return res.status(201).json({
         message: "Invite created successfully",
-        inviteLink
+        inviteLink,
       });
-
     } catch (error) {
       console.error("Invite error:", error);
       return res.status(500).json({ error: "Internal server error" });
     }
-  }
+  },
 );
 
 export default router;

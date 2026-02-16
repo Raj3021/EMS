@@ -1,7 +1,9 @@
 import { Bell, Search, Moon, Sun, Menu } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 
-function TopNav({ sidebarCollapsed, onMenuClick }) {
+export function TopNav({ sidebarCollapsed, onMenuClick }) {
   const [darkMode, setDarkMode] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -9,6 +11,39 @@ function TopNav({ sidebarCollapsed, onMenuClick }) {
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
     document.documentElement.classList.toggle("dark");
+  };
+
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
+
+  const displayName =
+    user?.name ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    user?.email ||
+    "User";
+  const roles = Array.isArray(user?.roles)
+    ? user.roles
+    : user?.role
+      ? [user.role]
+      : [];
+  const isAdmin = roles.some(
+    (role) => role?.toLowerCase && role.toLowerCase() === "admin",
+  );
+  const primaryRole = user?.role || roles[0] || "Member";
+  const tenantName = user?.tenantName || user?.tenant?.name || "";
+  const roleLabel = isAdmin ? "Admin" : primaryRole;
+  const subtitle = isAdmin && tenantName ? `${tenantName} - Admin` : roleLabel;
+  const initials = displayName
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const handleSignOut = () => {
+    logout();
+    setShowProfile(false);
+    navigate("/login");
   };
 
   return (
@@ -86,10 +121,22 @@ function TopNav({ sidebarCollapsed, onMenuClick }) {
           <button
             onClick={() => setShowProfile(!showProfile)}
             className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors">
-            <div className="avatar avatar-sm">JD</div>
+            {user?.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={displayName}
+                className="avatar avatar-sm"
+              />
+            ) : (
+              <div className="avatar avatar-sm">{initials}</div>
+            )}
             <div className="hidden md:block text-left">
-              <p className="text-sm font-medium">John Doe</p>
-              <p className="text-xs text-muted-foreground">Admin</p>
+              <p className="text-sm font-medium truncate max-w-[160px]">
+                {displayName}
+              </p>
+              <p className="text-xs text-muted-foreground truncate max-w-[160px]">
+                {subtitle}
+              </p>
             </div>
           </button>
 
@@ -103,7 +150,9 @@ function TopNav({ sidebarCollapsed, onMenuClick }) {
                   Account Settings
                 </button>
                 <hr className="my-2 border-border" />
-                <button className="w-full p-3 rounded-lg text-left text-sm text-destructive hover:bg-destructive/10 transition-colors">
+                <button
+                  onClick={handleSignOut}
+                  className="w-full p-3 rounded-lg text-left text-sm text-destructive hover:bg-destructive/10 transition-colors">
                   Sign Out
                 </button>
               </div>
@@ -114,5 +163,3 @@ function TopNav({ sidebarCollapsed, onMenuClick }) {
     </header>
   );
 }
-
-export default TopNav;

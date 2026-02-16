@@ -1,86 +1,153 @@
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Extensions
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
 
--- Tenants Table
-CREATE TABLE IF NOT EXISTS tenants (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    domain VARCHAR(255) UNIQUE NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- Table: tenants
+CREATE TABLE public.tenants (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name character varying(255) NOT NULL,
+    domain character varying(255),
+    is_active boolean DEFAULT true,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT tenants_pkey PRIMARY KEY (id),
+    CONSTRAINT tenants_domain_key UNIQUE (domain)
 );
 
--- Users Table
-CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
-    email VARCHAR(255) NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    is_email_verified BOOLEAN DEFAULT FALSE,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(tenant_id, email)
+-- Table: users
+CREATE TABLE public.users (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    email character varying(255) NOT NULL,
+    password_hash text NOT NULL,
+    is_email_verified boolean DEFAULT false,
+    is_active boolean DEFAULT true,
+    last_login timestamp without time zone,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    token_version integer DEFAULT 1,
+    CONSTRAINT users_pkey PRIMARY KEY (id),
+    CONSTRAINT users_tenant_id_email_key UNIQUE (tenant_id, email),
+    CONSTRAINT users_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE
 );
 
--- Roles Table
-CREATE TABLE IF NOT EXISTS roles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(50) UNIQUE NOT NULL,
-    description TEXT
+-- Indexes for users
+CREATE INDEX idx_users_email ON public.users USING btree (email);
+CREATE INDEX idx_users_tenant ON public.users USING btree (tenant_id);
+
+-- Table: roles
+CREATE TABLE public.roles (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid,
+    name character varying(50) NOT NULL,
+    description text,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT roles_pkey PRIMARY KEY (id),
+    CONSTRAINT roles_tenant_id_name_key UNIQUE (tenant_id, name),
+    CONSTRAINT roles_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE
 );
 
--- Permissions Table
-CREATE TABLE IF NOT EXISTS permissions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(50) UNIQUE NOT NULL,
-    description TEXT
+-- Table: permissions
+CREATE TABLE public.permissions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name character varying(100) NOT NULL,
+    description text,
+    CONSTRAINT permissions_pkey PRIMARY KEY (id),
+    CONSTRAINT permissions_name_key UNIQUE (name)
 );
 
--- User Roles Junction
-CREATE TABLE IF NOT EXISTS user_roles (
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
-    PRIMARY KEY (user_id, role_id)
+-- Table: user_roles
+CREATE TABLE public.user_roles (
+    user_id uuid NOT NULL,
+    role_id uuid NOT NULL,
+    CONSTRAINT user_roles_pkey PRIMARY KEY (user_id, role_id),
+    CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
+    CONSTRAINT user_roles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE
 );
 
--- Role Permissions Junction
-CREATE TABLE IF NOT EXISTS role_permissions (
-    role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
-    permission_id UUID REFERENCES permissions(id) ON DELETE CASCADE,
-    PRIMARY KEY (role_id, permission_id)
+-- Table: role_permissions
+CREATE TABLE public.role_permissions (
+    role_id uuid NOT NULL,
+    permission_id uuid NOT NULL,
+    CONSTRAINT role_permissions_pkey PRIMARY KEY (role_id, permission_id),
+    CONSTRAINT role_permissions_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE,
+    CONSTRAINT role_permissions_permission_id_fkey FOREIGN KEY (permission_id) REFERENCES public.permissions(id) ON DELETE CASCADE
 );
 
--- Employees Table
-CREATE TABLE IF NOT EXISTS employees (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL, -- Optional link to login user
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    phone VARCHAR(50),
-    designation VARCHAR(100),
-    department VARCHAR(100),
-    joining_date DATE,
-    profile_completed BOOLEAN DEFAULT FALSE,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(tenant_id, email)
+-- Table: auth_sessions
+CREATE TABLE public.auth_sessions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid,
+    refresh_token text NOT NULL,
+    user_agent text,
+    ip_address character varying(50),
+    expires_at timestamp without time zone NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT auth_sessions_pkey PRIMARY KEY (id),
+    CONSTRAINT auth_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE
 );
 
--- Invites Table
-CREATE TABLE IF NOT EXISTS invites (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
-    token VARCHAR(255) UNIQUE NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
-    role_id UUID REFERENCES roles(id),
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    accepted_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- Index for auth_sessions
+CREATE INDEX idx_sessions_user ON public.auth_sessions USING btree (user_id);
+
+-- Table: employees
+CREATE TABLE public.employees (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    user_id uuid,
+    first_name character varying(100) NOT NULL,
+    last_name character varying(100),
+    email character varying(255),
+    phone character varying(20),
+    designation character varying(100),
+    department character varying(100),
+    joining_date date,
+    profile_completed boolean DEFAULT false,
+    is_active boolean DEFAULT true,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT employees_pkey PRIMARY KEY (id),
+    CONSTRAINT employees_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE,
+    CONSTRAINT employees_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL
 );
+
+-- Table: invites
+CREATE TABLE public.invites (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    email character varying(255) NOT NULL,
+    first_name character varying(100),
+    last_name character varying(100),
+    role_id uuid,
+    department character varying(100),
+    token text NOT NULL,
+    expires_at timestamp without time zone NOT NULL,
+    invited_by uuid,
+    accepted_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT invites_pkey PRIMARY KEY (id),
+    CONSTRAINT invites_token_key UNIQUE (token),
+    CONSTRAINT invites_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE,
+    CONSTRAINT invites_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id),
+    CONSTRAINT invites_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES public.users(id)
+);
+
+-- Table: refresh_tokens
+CREATE TABLE public.refresh_tokens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    token_hash text NOT NULL,
+    expires_at timestamp without time zone NOT NULL,
+    revoked boolean DEFAULT false,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    created_by_ip inet,
+    replaced_by_token text,
+    CONSTRAINT refresh_tokens_pkey PRIMARY KEY (id),
+    CONSTRAINT refresh_tokens_token_hash_key UNIQUE (token_hash),
+    CONSTRAINT refresh_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
+    CONSTRAINT refresh_tokens_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE
+);
+
+-- Indexes for refresh_tokens
+CREATE INDEX idx_refresh_tokens_token_hash ON public.refresh_tokens USING btree (token_hash);
+CREATE INDEX idx_refresh_tokens_user_id ON public.refresh_tokens USING btree (user_id);

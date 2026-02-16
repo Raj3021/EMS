@@ -44,7 +44,7 @@ async function seed() {
     // 1. Create Tenant
     const tenantResult = await client.query(
       "INSERT INTO tenants (name, domain) VALUES ($1, $2) RETURNING id",
-      ["Demo Corp", "demo"]
+      ["Demo Corp", "demo"],
     );
     const tenantId = tenantResult.rows[0].id;
     console.log("Tenant created:", tenantId);
@@ -61,7 +61,7 @@ async function seed() {
     for (const role of rolesData) {
       const res = await client.query(
         "INSERT INTO roles (name, description) VALUES ($1, $2) RETURNING id, name",
-        [role.name, role.description]
+        [role.name, role.description],
       );
       roleMap[res.rows[0].name] = res.rows[0].id;
     }
@@ -73,23 +73,24 @@ async function seed() {
       "read_employee",
       "update_employee",
       "delete_employee",
+      "invite_user",
     ];
 
     const permMap = {};
     for (const perm of permissionsData) {
-        const res = await client.query(
-            "INSERT INTO permissions (name) VALUES ($1) RETURNING id, name",
-            [perm]
-        );
-        permMap[res.rows[0].name] = res.rows[0].id;
+      const res = await client.query(
+        "INSERT INTO permissions (name) VALUES ($1) RETURNING id, name",
+        [perm],
+      );
+      permMap[res.rows[0].name] = res.rows[0].id;
     }
 
     // 4. Assign permissions to Admin Role
     for (const permId of Object.values(permMap)) {
-        await client.query(
-            "INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2)",
-            [roleMap["admin"], permId]
-        );
+      await client.query(
+        "INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2)",
+        [roleMap["admin"], permId],
+      );
     }
     console.log("Permissions assigned.");
 
@@ -97,7 +98,7 @@ async function seed() {
     const hashedPassword = await bcrypt.hash("password123", 10);
     const userResult = await client.query(
       "INSERT INTO users (tenant_id, email, password_hash, is_email_verified) VALUES ($1, $2, $3, $4) RETURNING id",
-      [tenantId, "admin@demo.com", hashedPassword, true]
+      [tenantId, "admin@demo.com", hashedPassword, true],
     );
     const userId = userResult.rows[0].id;
     console.log("Admin user created:", userId);
@@ -105,18 +106,28 @@ async function seed() {
     // 6. Assign Admin Role to User
     await client.query(
       "INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)",
-      [userId, roleMap["admin"]]
+      [userId, roleMap["admin"]],
     );
 
     // 7. Create Employee Profile for Admin
     await client.query(
-        "INSERT INTO employees (tenant_id, user_id, first_name, last_name, email, designation, department, joining_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-        [tenantId, userId, "Admin", "User", "admin@demo.com", "System Admin", "IT", new Date()]
+      "INSERT INTO employees (tenant_id, user_id, first_name, last_name, email, designation, department, joining_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+      [
+        tenantId,
+        userId,
+        "Admin",
+        "User",
+        "admin@demo.com",
+        "System Admin",
+        "IT",
+        new Date(),
+      ],
     );
 
     console.log("Seeding complete!");
-    console.log("Login with: admin@demo.com / password123 (Tenant Domain: demo)");
-
+    console.log(
+      "Login with: admin@demo.com / password123 (Tenant Domain: demo)",
+    );
   } catch (err) {
     console.error("Seeding error:", err);
   } finally {
