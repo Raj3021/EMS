@@ -17,47 +17,52 @@ router.post("/login", async (req, res) => {
     );
 
     if (tenant.rowCount === 0) {
+      console.log("Login failed: Email not found in users table");
       return res.status(401).json({ message: "Invalid credentials" });
     }
+
+    // Identify the correct tenant/user. If multiple, we might need logic, but for now take the first active one or just the first one.
+    // Better approach: Find the user directly by email and verify password.
+    // But since the current logic relies on tenant_id first... let's stick to it but maybe iterate?
+    
+    // Debugging: what did we find?
+    // console.log("Found users with this email:", tenant.rows);
 
     const tenantDomain = tenant.rows[0].tenant_id;
-    console.log(tenantDomain);
-
-    // 1. Validate input
-    if (tenantDomain == undefined || !email || !password) {
-      // console.log("Missing fields:", { tenantDomain, email, password });
-      return res
-        .status(400)
-        .json({ message: "Tenant domain, email, and password are required" });
-    }
-
-    // 2. Find tenant by domain
-
-    // console.log("Error after this line");
-    // console.log(tenantResult);
-
-    const tenantId = tenantDomain;
-    // console.log("Tenant ID:", tenantId);
-    // 3. Find user within the tenant
+    
+    // 2. Find user within the tenant
     const userResult = await pool.query(
-      "SELECT * FROM users WHERE tenant_id = $1 AND email = $2 AND is_active = true",
-      [tenantId, email],
+      "SELECT * FROM users WHERE email = $1 AND is_active = true",
+      [email.toLowerCase()],
     );
 
-    // console.log(userResult.rows);
-
     if (userResult.rowCount === 0) {
+      console.log("Login failed: User found in initial check but not found in active users query (status mismatch?)");
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const user = userResult.rows[0];
-    // console.log(user);
-    // 4. Compare password
-    // console.log(password);
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch) {
+    // There might be multiple users if multi-tenant. For now, let's try to match password against ANY of the found users.
+    // If we find a match, use that user.
+    
+    let user = null;
+    let isMatch = false;
+
+    for (const u of userResult.rows) {
+        const match = await bcrypt.compare(password, u.password_hash);
+        if (match) {
+            user = u;
+            isMatch = true;
+            break;
+        }
+    }
+
+    if (!isMatch || !user) {
+      console.log("Login failed: Password mismatch");
       return res.status(401).json({ message: "Invalid credentials" });
     }
+
+    // If we found a valid user, update tenantId variable just in case
+    const tenantId = user.tenant_id;
 
     // 5. Get roles
     const rolesResult = await pool.query(
@@ -71,9 +76,10 @@ router.post("/login", async (req, res) => {
     const roles = rolesResult.rows.map((r) => r.name);
     // console.log(roles[0]);
 
-    if (!roles.includes("Admin")) {
-      return res.status(403).json({ message: "Only admin can login" });
-    }
+    // RESTRICTION REMOVED: Allow all valid users (Employees, Managers, etc.) to login.
+    // if (!roles.includes("Admin")) {
+    //   return res.status(403).json({ message: "Only admin can login" });
+    // }
 
     const employeeResult = await pool.query(
       "SELECT first_name, last_name FROM employees WHERE user_id = $1",
@@ -170,6 +176,33 @@ router.post("/accept-invite", async (req, res) => {
     await client.query("BEGIN");
 
     // 1️⃣ Validate invite
+    // 1️⃣ Validate invite - Check existence first for better error messages
+    const inviteCheck = await client.query(
+      "SELECT * FROM public.invites WHERE token = $1",
+      [token]
+    );
+
+    if (inviteCheck.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Invalid invite link." });
+    }
+
+    const invite = inviteCheck.rows[0];
+
+    if (invite.accepted_at) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "This invite has already been accepted." });
+    }
+
+    if (new Date(invite.expires_at) < new Date()) {
+      await client.query("ROLLBACK");
+      return res.status(410).json({ error: "This invite link has expired." });
+    }
+    
+    // If we are here, invite is valid!
+    // Continue with existing logic... but we already have 'invite' object.
+    
+    /* 
     const inviteResult = await client.query(
       `
       SELECT *
@@ -189,6 +222,7 @@ router.post("/accept-invite", async (req, res) => {
     }
 
     const invite = inviteResult.rows[0];
+    */
     const {
       tenant_id,
       email,
@@ -231,7 +265,7 @@ router.post("/accept-invite", async (req, res) => {
       VALUES ($1, $2, $3, true, true)
       RETURNING id
       `,
-      [tenant_id, email, password_hash],
+      [tenant_id, email.toLowerCase(), password_hash],
     );
 
     const user_id = userResult.rows[0].id;

@@ -1,5 +1,5 @@
 import { Bell, Search, Moon, Sun, Menu } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 
@@ -7,6 +7,24 @@ export function TopNav({ sidebarCollapsed, onMenuClick }) {
   const [darkMode, setDarkMode] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const notifRef = useRef(null);
+  const profileRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setShowProfile(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -84,16 +102,19 @@ export function TopNav({ sidebarCollapsed, onMenuClick }) {
         </button>
 
         {/* Notifications */}
-        <div className="relative">
+        <div className="relative" ref={notifRef}>
           <button
-            onClick={() => setShowNotifications(!showNotifications)}
+            onClick={() => {
+              setShowNotifications(!showNotifications);
+              setShowProfile(false);
+            }}
             className="p-2 rounded-lg hover:bg-muted transition-colors relative">
             <Bell className="w-5 h-5 text-muted-foreground" />
             <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 top-12 w-80 bg-card rounded-xl border border-border shadow-soft-lg animate-fade-in">
+            <div className="absolute right-0 top-12 w-80 bg-card rounded-xl border border-border shadow-soft-lg animate-fade-in z-50">
               <div className="p-4 border-b border-border">
                 <h3 className="font-semibold">Notifications</h3>
               </div>
@@ -117,9 +138,12 @@ export function TopNav({ sidebarCollapsed, onMenuClick }) {
         </div>
 
         {/* Profile */}
-        <div className="relative">
+        <div className="relative" ref={profileRef}>
           <button
-            onClick={() => setShowProfile(!showProfile)}
+            onClick={() => {
+              setShowProfile(!showProfile);
+              setShowNotifications(false);
+            }}
             className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors">
             {user?.avatarUrl ? (
               <img
@@ -141,12 +165,22 @@ export function TopNav({ sidebarCollapsed, onMenuClick }) {
           </button>
 
           {showProfile && (
-            <div className="absolute right-0 top-14 w-56 bg-card rounded-xl border border-border shadow-soft-lg animate-fade-in">
+            <div className="absolute right-0 top-14 w-56 bg-card rounded-xl border border-border shadow-soft-lg animate-fade-in z-50">
               <div className="p-2">
-                <button className="w-full p-3 rounded-lg text-left text-sm hover:bg-muted transition-colors">
+                <button
+                  onClick={() => {
+                    navigate("/settings?tab=profile");
+                    setShowProfile(false);
+                  }}
+                  className="w-full p-3 rounded-lg text-left text-sm hover:bg-muted transition-colors">
                   View Profile
                 </button>
-                <button className="w-full p-3 rounded-lg text-left text-sm hover:bg-muted transition-colors">
+                <button
+                  onClick={() => {
+                    navigate("/settings?tab=company");
+                    setShowProfile(false);
+                  }}
+                  className="w-full p-3 rounded-lg text-left text-sm hover:bg-muted transition-colors">
                   Account Settings
                 </button>
                 <hr className="my-2 border-border" />

@@ -10,10 +10,6 @@ export default function AcceptInvite() {
   const [form, setForm] = useState({
     password: "",
     confirmPassword: "",
-    phone: "",
-    designation: "",
-    department: "",
-    joiningDate: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -44,13 +40,10 @@ export default function AcceptInvite() {
         token,
         password: form.password,
         confirmPassword: form.confirmPassword,
-        phone: form.phone,
-        designation: form.designation,
-        department: form.department,
-        joiningDate: form.joiningDate,
       });
 
-      setSuccess("Password set successfully. You can now log in.");
+      setSuccess("Account set up successfully. Redirecting to login...");
+      setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
       setError(err?.response?.data?.error || "Failed to accept invite.");
     } finally {
@@ -60,89 +53,42 @@ export default function AcceptInvite() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
-      <div className="w-full max-w-lg bg-card border border-border rounded-xl p-6 shadow-sm">
-        <h1 className="text-2xl font-bold">Set up your account</h1>
-        <p className="text-sm text-muted-foreground mt-2">
-          Create a password and complete your profile to access the dashboard.
-        </p>
+      <div className="w-full max-w-md bg-card border border-border rounded-xl p-8 shadow-sm">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold">Welcome to WorkHub</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            Set a password to activate your account
+          </p>
+        </div>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Password</label>
-              <input
-                type="password"
-                className="input-field"
-                value={form.password}
-                onChange={(e) => handleChange("password", e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Confirm Password
-              </label>
-              <input
-                type="password"
-                className="input-field"
-                value={form.confirmPassword}
-                onChange={(e) =>
-                  handleChange("confirmPassword", e.target.value)
-                }
-                required
-              />
-            </div>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div>
+            <label className="block text-sm font-medium mb-2">Password</label>
+            <input
+              type="password"
+              className="input-field"
+              placeholder="Enter your password"
+              value={form.password}
+              onChange={(e) => handleChange("password", e.target.value)}
+              required
+              minLength={6}
+            />
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Phone</label>
-              <input
-                type="tel"
-                className="input-field"
-                value={form.phone}
-                onChange={(e) => handleChange("phone", e.target.value)}
-                placeholder="+1 555 123 4567"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Designation
-              </label>
-              <input
-                type="text"
-                className="input-field"
-                value={form.designation}
-                onChange={(e) => handleChange("designation", e.target.value)}
-                placeholder="Project Manager"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Department
-              </label>
-              <input
-                type="text"
-                className="input-field"
-                value={form.department}
-                onChange={(e) => handleChange("department", e.target.value)}
-                placeholder="Engineering"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Joining Date
-              </label>
-              <input
-                type="date"
-                className="input-field"
-                value={form.joiningDate}
-                onChange={(e) => handleChange("joiningDate", e.target.value)}
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Confirm Password
+            </label>
+            <input
+              type="password"
+              className="input-field"
+              placeholder="Confirm your password"
+              value={form.confirmPassword}
+              onChange={(e) =>
+                handleChange("confirmPassword", e.target.value)
+              }
+              required
+              minLength={6}
+            />
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}

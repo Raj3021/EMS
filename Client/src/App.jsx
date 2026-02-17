@@ -17,11 +17,16 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import "./index.css";
 import ProtectedRoute from "./pages/ProtectedRoute";
+import { ThemeProvider } from "./context/ThemeContext";
+import { ToastProvider } from "./context/ToastContext";
+import { AuthProvider } from "./context/AuthContext"; // Ensure AuthProvider is also used if not already wrapping App in main.jsx
 
 function App() {
   return (
-    <Router>
-      <Routes>
+    <ThemeProvider>
+      <ToastProvider>
+        <Router>
+          <Routes>
         {/* Public Routes (No Layout) */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -29,6 +34,7 @@ function App() {
         <Route path="/accept-invite" element={<AcceptInvite />} />
 
         {/* Protected Routes (With Layout) */}
+        <Route element={<ProtectedRoute />}>
         <Route
           path="/"
           element={
@@ -110,10 +116,14 @@ function App() {
           }
         />
 
+        </Route>
+
         {/* 404 Route */}
         <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Router>
+          </Routes>
+        </Router>
+      </ToastProvider>
+    </ThemeProvider>
   );
 }
 

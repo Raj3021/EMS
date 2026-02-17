@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Plus,
   Search,
@@ -9,15 +9,37 @@ import {
   Trash2,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
-import { employees } from "@/data/mockData";
 import api from "@/services/api";
+import { employeeService } from "@/services/employeeService";
+import { useEffect } from "react";
+import { useToast } from "@/context/ToastContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Employees() {
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const toast = useToast();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [showMenu, setShowMenu] = useState(null);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
   const [inviteForm, setInviteForm] = useState({
     firstName: "",
     lastName: "",
@@ -30,12 +52,80 @@ export default function Employees() {
   const [inviteSuccess, setInviteSuccess] = useState("");
   const [inviteLink, setInviteLink] = useState("");
 
-  const filteredEmployees = employees.filter(
-    (emp) =>
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [empData, inviteData] = await Promise.all([
+        employeeService.getAll(),
+        api.get("/invites").then(res => res.data).catch(() => []) // Handle error in case invites fail
+      ]);
+
+      // Format employees
+      const formattedEmployees = empData.map(emp => ({
+        id: emp.id,
+        name: `${emp.first_name} ${emp.last_name || ''}`.trim(),
+        email: emp.email,
+        role: emp.role_name || emp.designation || 'Employee', // Prioritize system role
+        department: emp.department || 'Unassigned',
+        status: emp.status || (emp.is_active ? 'active' : 'inactive'),
+        avatar: `${emp.first_name[0]}${emp.last_name ? emp.last_name[0] : ''}`.toUpperCase(),
+        joinDate: new Date(emp.joining_date || emp.created_at).toLocaleDateString(),
+        type: 'employee'
+      }));
+
+      // Format invites
+      const formattedInvites = inviteData.map(inv => ({
+        id: `invite-${inv.id}`,
+        name: `${inv.first_name} ${inv.last_name || ''}`.trim(),
+        email: inv.email,
+        role: inv.role_name || 'Pending',
+        department: inv.department || 'Pending',
+        status: 'invited',
+        avatar: '?',
+        joinDate: 'Pending',
+        type: 'invite'
+      }));
+
+      setEmployees([...formattedEmployees, ...formattedInvites]);
+    } catch (error) {
+      console.error("Failed to fetch employees:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const filteredEmployees = employees.filter((emp) => {
+    const matchesSearch =
       emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       emp.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.role.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+      emp.role.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesDepartment = departmentFilter
+      ? emp.department.toLowerCase() === departmentFilter.toLowerCase()
+      : true;
+
+    const matchesStatus = statusFilter
+      ? emp.status.toLowerCase() === statusFilter.toLowerCase()
+      : true;
+
+    return matchesSearch && matchesDepartment && matchesStatus;
+  });
+
+  // Robust role checking
+  const roles = Array.isArray(user?.roles) 
+    ? user.roles 
+    : user?.role 
+      ? [user.role] 
+      : [];
+      
+  const canManageEmployees = roles.some(role => {
+    const r = typeof role === 'string' ? role.toLowerCase() : '';
+    return r === 'admin' || r === 'manager';
+  });
 
   const handleViewProfile = (employee) => {
     setSelectedEmployee(employee);
@@ -50,7 +140,7 @@ export default function Employees() {
   const handleInviteSubmit = async (event) => {
     event.preventDefault();
     setInviteLoading(true);
-    setInviteError("");
+    // setInviteError(""); 
     setInviteSuccess("");
     setInviteLink("");
 
@@ -60,17 +150,19 @@ export default function Employees() {
         lastName: inviteForm.lastName.trim(),
         email: inviteForm.email.trim(),
         role: inviteForm.role,
+        department: inviteForm.department,
       };
-
-      if (inviteForm.role === "employee") {
-        payload.department = inviteForm.department;
-      }
 
       const response = await api.post("/invites", payload);
 
       setInviteSuccess("Invite sent successfully.");
+      toast.success("Invite sent successfully!");
       if (response.data?.inviteLink) {
         setInviteLink(response.data.inviteLink);
+        // Keep the success message in the modal so they can copy the link
+      } else {
+         // If no link to show, we can close the modal or just clear form
+         setShowAddModal(false);
       }
 
       setInviteForm({
@@ -80,13 +172,30 @@ export default function Employees() {
         role: "manager",
         department: "",
       });
+      
+      // Refresh list
+      fetchData();
     } catch (error) {
-      setInviteError(
-        error?.response?.data?.error || "Failed to send invite. Try again.",
-      );
+      const errorMsg = error?.response?.data?.error || "Failed to send invite. Try again.";
+      setInviteError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setInviteLoading(false);
     }
+  };
+
+  const handleCloseAddModal = () => {
+    setShowAddModal(false);
+    setInviteForm({
+      firstName: "",
+      lastName: "",
+      email: "",
+      role: "manager",
+      department: "",
+    });
+    setInviteError("");
+    setInviteSuccess("");
+    setInviteLink("");
   };
 
   return (
@@ -99,12 +208,14 @@ export default function Employees() {
             Manage your team members and their roles
           </p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors">
-          <Plus className="w-4 h-4" />
-          Add Employee
-        </button>
+        {canManageEmployees && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors">
+            <Plus className="w-4 h-4" />
+            Add Employee
+          </button>
+        )}
       </div>
 
       {/* Search and Filters */}
@@ -120,25 +231,39 @@ export default function Employees() {
               className="input-field pl-10"
             />
           </div>
-          <select className="input-field sm:w-48">
+          <select 
+            className="input-field sm:w-48"
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+          >
             <option value="">All Departments</option>
             <option value="engineering">Engineering</option>
             <option value="design">Design</option>
             <option value="marketing">Marketing</option>
             <option value="sales">Sales</option>
+            <option value="hr">Human Resources</option>
           </select>
-          <select className="input-field sm:w-40">
+          <select 
+            className="input-field sm:w-40"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
             <option value="">All Status</option>
             <option value="active">Active</option>
-            <option value="away">Away</option>
+            <option value="busy">Busy</option>
             <option value="offline">Offline</option>
+            <option value="invited">Invited</option>
+            <option value="inactive">Inactive</option>
           </select>
         </div>
       </div>
 
       {/* Employee Table */}
-      <div className="dashboard-card overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="dashboard-card min-h-[500px] mb-8 pb-24">
+        {loading ? (
+             <div className="p-8 text-center text-muted-foreground">Loading employees...</div>
+        ) : (
+        <div className="overflow-x-auto min-h-[400px]">
           <table className="w-full">
             <thead>
               <tr className="table-header">
@@ -177,7 +302,7 @@ export default function Employees() {
                       className={`badge ${
                         employee.status === "active"
                           ? "badge-success"
-                          : employee.status === "away"
+                          : employee.status === "busy"
                             ? "badge-warning"
                             : "badge-muted"
                       }`}>
@@ -188,13 +313,14 @@ export default function Employees() {
                     {employee.joinDate}
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center justify-end gap-2 relative">
+                    <div className="flex items-center justify-end gap-2 relative" ref={showMenu === employee.id ? menuRef : null}>
                       <button
-                        onClick={() =>
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setShowMenu(
                             showMenu === employee.id ? null : employee.id,
-                          )
-                        }
+                          );
+                        }}
                         className="p-2 rounded-lg hover:bg-muted transition-colors">
                         <MoreVertical className="w-4 h-4 text-muted-foreground" />
                       </button>
@@ -207,14 +333,42 @@ export default function Employees() {
                               <Edit2 className="w-4 h-4" />
                               View Profile
                             </button>
-                            <button className="w-full p-2 rounded-lg text-left text-sm hover:bg-muted transition-colors flex items-center gap-2">
+                            <button 
+                              onClick={() => {
+                                window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${employee.email}`, "_blank");
+                                setShowMenu(null);
+                              }}
+                              className="w-full p-2 rounded-lg text-left text-sm hover:bg-muted transition-colors flex items-center gap-2">
                               <Mail className="w-4 h-4" />
                               Send Email
                             </button>
-                            <button className="w-full p-2 rounded-lg text-left text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2">
-                              <Trash2 className="w-4 h-4" />
-                              Remove
-                            </button>
+                            {canManageEmployees && (
+                              <button 
+                                onClick={async () => {
+                                  if (window.confirm(`Are you sure you want to remove ${employee.name}?`)) {
+                                    try {
+                                      if (employee.type === 'invite') {
+                                         const inviteId = employee.id.replace('invite-', '');
+                                         await api.delete(`/invites/${inviteId}`);
+                                         toast.success("Invite removed successfully");
+                                         setEmployees(prev => prev.filter(e => e.id !== employee.id));
+                                      } else {
+                                          await employeeService.delete(employee.id);
+                                          toast.success("Employee and associated user removed successfully");
+                                          setEmployees(prev => prev.filter(e => e.id !== employee.id));
+                                      }
+                                    } catch (err) {
+                                      toast.error("Failed to remove employee");
+                                      console.error(err);
+                                    }
+                                  }
+                                  setShowMenu(null);
+                                }}
+                                className="w-full p-2 rounded-lg text-left text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2">
+                                <Trash2 className="w-4 h-4" />
+                                Remove
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}
@@ -225,12 +379,13 @@ export default function Employees() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       {/* Add Employee Modal */}
       <Modal
         isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={handleCloseAddModal}
         title="Add New Employee"
         size="lg">
         <form className="space-y-4" onSubmit={handleInviteSubmit}>
@@ -290,29 +445,27 @@ export default function Employees() {
               </select>
             </div>
 
-            {inviteForm.role === "employee" && (
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Department
-                </label>
-                <select
-                  className="input-field"
-                  value={inviteForm.department}
-                  onChange={(e) =>
-                    handleInviteChange("department", e.target.value)
-                  }
-                  required={inviteForm.role === "employee"}>
-                  <option value="" disabled>
-                    Select Department
-                  </option>
-                  <option value="engineering">Engineering</option>
-                  <option value="design">Design</option>
-                  <option value="marketing">Marketing</option>
-                  <option value="sales">Sales</option>
-                  <option value="hr">Human Resources</option>
-                </select>
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Department
+              </label>
+              <select
+                className="input-field"
+                value={inviteForm.department}
+                onChange={(e) =>
+                  handleInviteChange("department", e.target.value)
+                }
+                required>
+                <option value="" disabled>
+                  Select Department
+                </option>
+                <option value="engineering">Engineering</option>
+                <option value="design">Design</option>
+                <option value="marketing">Marketing</option>
+                <option value="sales">Sales</option>
+                <option value="hr">Human Resources</option>
+              </select>
+            </div>
           </div>
 
           {inviteError && (
@@ -331,7 +484,7 @@ export default function Employees() {
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
-              onClick={() => setShowAddModal(false)}
+              onClick={handleCloseAddModal}
               className="px-4 py-2 rounded-lg border border-border hover:bg-muted transition-colors">
               Cancel
             </button>
@@ -346,6 +499,7 @@ export default function Employees() {
       </Modal>
 
       {/* Employee Profile Modal */}
+      
       <Modal
         isOpen={showProfileModal}
         onClose={() => setShowProfileModal(false)}
@@ -385,7 +539,9 @@ export default function Employees() {
               </div>
             </div>
             <div className="flex justify-end gap-3">
-              <button className="px-4 py-2 rounded-lg border border-border hover:bg-muted transition-colors flex items-center gap-2">
+              <button 
+                onClick={() => window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${selectedEmployee.email}`, "_blank")}
+                className="px-4 py-2 rounded-lg border border-border hover:bg-muted transition-colors flex items-center gap-2">
                 <Mail className="w-4 h-4" />
                 Send Email
               </button>
@@ -394,6 +550,7 @@ export default function Employees() {
                 Edit Profile
               </button>
             </div>
+            
           </div>
         )}
       </Modal>

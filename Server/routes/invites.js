@@ -89,7 +89,7 @@ router.post(
           `
           SELECT id, name
           FROM roles
-          WHERE name = $1 AND (tenant_id = $2 OR tenant_id IS NULL)
+          WHERE LOWER(name) = LOWER($1) AND (tenant_id = $2 OR tenant_id IS NULL)
           `,
           [resolvedRoleName, tenantId],
         );
@@ -104,13 +104,13 @@ router.post(
         resolvedRoleName = roleResult.rows[0].name;
       }
 
-      if (!allowedRoles.includes(resolvedRoleName)) {
+      if (!allowedRoles.includes(resolvedRoleName.toLowerCase())) {
         return res.status(400).json({
           error: "Role must be manager or employee",
         });
       }
 
-      if (resolvedRoleName === "employee" && !department) {
+      if (resolvedRoleName.toLowerCase() === "employee" && !department) {
         return res.status(400).json({
           error: "department is required for employee role",
         });
@@ -172,4 +172,72 @@ router.post(
   },
 );
 
+/**
+ * GET /invites
+ * Get all pending invites
+ */
+router.get("/", authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT id, email, first_name, last_name, role_id, department, created_at, expires_at
+      FROM invites
+      WHERE tenant_id = $1 AND accepted_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+      ORDER BY created_at DESC
+      `,
+      [req.user.tenantId],
+    );
+
+    // Join with roles to get role names
+    // Alternatively, we could do a JOIN in SQL
+    const invites = result.rows;
+
+    // Let's enhance with role names if role_id is present
+    const invitesWithRoles = await Promise.all(
+      invites.map(async (invite) => {
+        if (!invite.role_id) return { ...invite, role_name: "Employee" };
+
+        const roleRes = await pool.query(
+          "SELECT name FROM roles WHERE id = $1",
+          [invite.role_id],
+        );
+        return {
+          ...invite,
+          role_name: roleRes.rows[0]?.name || "Unknown",
+        };
+      }),
+    );
+
+    res.json(invitesWithRoles);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+/**
+ * DELETE /invites/:id
+ * Delete an invite
+ */
+router.delete("/:id", authMiddleware, requirePermission("invite_user"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tenantId = req.user.tenantId;
+
+    const result = await pool.query(
+      "DELETE FROM invites WHERE id = $1 AND tenant_id = $2 RETURNING *",
+      [id, tenantId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Invite not found" });
+    }
+
+    res.json({ message: "Invite removed successfully" });
+  } catch (error) {
+    console.error("Delete invite error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+  
 export default router;

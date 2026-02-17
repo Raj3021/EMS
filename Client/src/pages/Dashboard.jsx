@@ -97,44 +97,78 @@ export default function Dashboard() {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Activity Feed */}
+        {/* Tasks Overview (Taking the place of Activity Feed) */}
         <div className="lg:col-span-2 dashboard-card">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold">Recent Activity</h2>
+            <h2 className="text-lg font-semibold">Pending Tasks</h2>
             <button className="text-sm text-primary hover:underline">
-              View all
+              View all tasks
             </button>
           </div>
-          <div className="space-y-4">
-            {activities.map((activity) => {
-              const IconComponent = iconMap[activity.icon] || Clock;
-              return (
-                <div
-                  key={activity.id}
-                  className="flex items-start gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <IconComponent className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm">
-                      <span className="font-medium">{activity.user}</span>{" "}
-                      <span className="text-muted-foreground">
-                        {activity.action}
-                      </span>{" "}
-                      <span className="font-medium">{activity.target}</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {activity.time}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="table-header">
+                  <th className="text-left p-3 rounded-l-lg">Task</th>
+                  <th className="text-left p-3">Project</th>
+                  <th className="text-left p-3">Assignee</th>
+                  <th className="text-left p-3">Priority</th>
+                  <th className="text-left p-3">Due Date</th>
+                  <th className="text-left p-3 rounded-r-lg">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingTasks.slice(0, 5).map((task) => (
+                  <tr
+                    key={task.id}
+                    className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                    <td className="p-3">
+                      <span className="font-medium">{task.title}</span>
+                    </td>
+                    <td className="p-3 text-muted-foreground">{task.project}</td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        <div className="avatar avatar-sm">
+                          {task.assignee
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </div>
+                        <span className="text-sm">{task.assignee}</span>
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <span
+                        className={`badge ${
+                          task.priority === "high"
+                            ? "badge-warning"
+                            : task.priority === "medium"
+                              ? "badge-primary"
+                              : "badge-muted"
+                        }`}>
+                        {task.priority}
+                      </span>
+                    </td>
+                    <td className="p-3 text-muted-foreground">{task.dueDate}</td>
+                    <td className="p-3">
+                      <span
+                        className={`badge whitespace-nowrap ${
+                          task.status === "in-progress"
+                            ? "badge-primary"
+                            : "badge-muted"
+                        }`}>
+                        {task.status === "in-progress" ? "In Progress" : "To Do"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Upcoming Meetings */}
-        <div className="dashboard-card">
+        {/* Upcoming Meetings (Kept on the side) */}
+        <div className="dashboard-card h-fit">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold">Upcoming Meetings</h2>
             <button className="text-sm text-primary hover:underline">
@@ -163,76 +197,6 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* Tasks Overview */}
-      <div className="dashboard-card">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold">Pending Tasks</h2>
-          <button className="text-sm text-primary hover:underline">
-            View all tasks
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="table-header">
-                <th className="text-left p-3 rounded-l-lg">Task</th>
-                <th className="text-left p-3">Project</th>
-                <th className="text-left p-3">Assignee</th>
-                <th className="text-left p-3">Priority</th>
-                <th className="text-left p-3">Due Date</th>
-                <th className="text-left p-3 rounded-r-lg">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingTasks.slice(0, 5).map((task) => (
-                <tr
-                  key={task.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                  <td className="p-3">
-                    <span className="font-medium">{task.title}</span>
-                  </td>
-                  <td className="p-3 text-muted-foreground">{task.project}</td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="avatar avatar-sm">
-                        {task.assignee
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </div>
-                      <span className="text-sm">{task.assignee}</span>
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <span
-                      className={`badge ${
-                        task.priority === "high"
-                          ? "badge-warning"
-                          : task.priority === "medium"
-                            ? "badge-primary"
-                            : "badge-muted"
-                      }`}>
-                      {task.priority}
-                    </span>
-                  </td>
-                  <td className="p-3 text-muted-foreground">{task.dueDate}</td>
-                  <td className="p-3">
-                    <span
-                      className={`badge ${
-                        task.status === "in-progress"
-                          ? "badge-primary"
-                          : "badge-muted"
-                      }`}>
-                      {task.status === "in-progress" ? "In Progress" : "To Do"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>

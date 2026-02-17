@@ -2,13 +2,12 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Building2, Mail, Lock, Eye, EyeOff } from "lucide-react";
 // import axios from "axios";
-// import { useAuth } from "../context/AuthContext";
-import { authService } from "../services/authService";
-import { AuthProvider } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import { useEffect } from "react";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +24,7 @@ export default function Login() {
     e.preventDefault();
 
     try {
-      await authService.login({ email, password });
+      await login(email, password);
       navigate("/"); // dashboard
     } catch (err) {
       console.error(err);

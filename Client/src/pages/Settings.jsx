@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
-import { Building2, User, Shield, Bell, Palette } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Building2, User, Shield, Bell, Palette, Eye, EyeOff, Check, X, LogOut } from "lucide-react";
 import { settingsService } from "@/services/settingsService";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
+import { useToast } from "@/context/ToastContext";
 
 const tabs = [
   { id: "company", label: "Company", icon: Building2 },
@@ -12,11 +15,14 @@ const tabs = [
 ];
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState("company");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "company");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const { updateTheme } = useTheme();
+  const toast = useToast();
 
   // Form states
   const [profile, setProfile] = useState({
@@ -33,14 +39,73 @@ export default function Settings() {
     domain: "",
   });
 
+  const [preferences, setPreferences] = useState({
+    theme: "system",
+    language: "en-US",
+    notifications: {},
+  });
+
+  const [roleStats, setRoleStats] = useState([]);
+
+  // Password Change State
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+  
+  const handlePasswordChange = (e) => {
+    setPasswordForm({ ...passwordForm, [e.target.name]: e.target.value });
+  };
+
+  const handlePasswordSubmit = async () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+        setError("All password fields are required");
+        return;
+    }
+    
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        setError("New passwords do not match");
+        return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+      await settingsService.changePassword(passwordForm.currentPassword, passwordForm.newPassword);
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      toast.success("Password updated successfully!");
+    } catch (err) {
+      console.error("Error updating password:", err);
+      const errorMessage = err.response?.data?.message || "Failed to update password";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Load settings on mount
   useEffect(() => {
     const loadSettings = async () => {
       try {
         setLoading(true);
-        const data = await settingsService.getSettings();
-        setProfile(data.profile);
-        setCompany(data.company);
+        const [settingsData, preferencesData, roleStatsData] = await Promise.all([
+          settingsService.getSettings(),
+          settingsService.getPreferences(),
+          settingsService.getRoleStats(),
+        ]);
+        
+        setProfile(settingsData.profile);
+        setCompany(settingsData.company);
+        setPreferences(preferencesData);
+        setRoleStats(roleStatsData);
+        
         setError(null);
       } catch (err) {
         console.error("Error loading settings:", err);
@@ -60,11 +125,12 @@ export default function Settings() {
       setSaving(true);
       await settingsService.updateProfile(profile);
       setError(null);
-      // Show success message (you can add a toast here)
-      alert("Profile updated successfully!");
+      toast.success("Profile updated successfully!");
     } catch (err) {
       console.error("Error updating profile:", err);
-      setError("Failed to update profile");
+      const errorMessage = err.response?.data?.message || err.message || "Failed to update profile";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -77,10 +143,30 @@ export default function Settings() {
       setSaving(true);
       await settingsService.updateCompany(company);
       setError(null);
-      alert("Company settings updated successfully!");
+      toast.success("Company settings updated successfully!");
     } catch (err) {
       console.error("Error updating company:", err);
-      setError("Failed to update company settings");
+      const errorMessage = err.response?.data?.message || err.message || "Failed to update company settings";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Handle preferences submit (Appearance & Notifications)
+  const handlePreferencesSubmit = async () => {
+    try {
+      setSaving(true);
+      await settingsService.updatePreferences(preferences);
+      updateTheme(preferences.theme); // Update theme context immediately
+      setError(null);
+      toast.success("Preferences updated successfully!");
+    } catch (err) {
+      console.error("Error updating preferences:", err);
+      const errorMessage = err.response?.data?.message || err.message || "Failed to update preferences";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -115,7 +201,10 @@ export default function Settings() {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setSearchParams({ tab: tab.id });
+                }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
                   activeTab === tab.id
                     ? "bg-primary/10 text-primary font-medium"
@@ -125,6 +214,19 @@ export default function Settings() {
                 {tab.label}
               </button>
             ))}
+            
+            <div className="border-t border-border my-2"></div>
+            
+            <button
+              onClick={() => {
+                if (window.confirm("Are you sure you want to log out?")) {
+                  logout();
+                }
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left text-destructive hover:bg-destructive/10 transition-colors">
+              <LogOut className="w-5 h-5" />
+              Log Out
+            </button>
           </nav>
         </div>
 
@@ -292,22 +394,91 @@ export default function Settings() {
                       <label className="block text-sm font-medium mb-2">
                         Current Password
                       </label>
-                      <input type="password" className="input-field" />
+                      <div className="relative">
+                        <input
+                          type={showPasswords.current ? "text" : "password"}
+                          name="currentPassword"
+                          value={passwordForm.currentPassword}
+                          onChange={handlePasswordChange}
+                          className="input-field pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPasswords({...showPasswords, current: !showPasswords.current})}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">
                         New Password
                       </label>
-                      <input type="password" className="input-field" />
+                      <div className="relative">
+                        <input
+                          type={showPasswords.new ? "text" : "password"}
+                          name="newPassword"
+                          value={passwordForm.newPassword}
+                          onChange={handlePasswordChange}
+                          className="input-field pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPasswords({...showPasswords, new: !showPasswords.new})}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">
                         Confirm New Password
                       </label>
-                      <input type="password" className="input-field" />
+                      <div className="relative">
+                        <input
+                          type={showPasswords.confirm ? "text" : "password"}
+                          name="confirmPassword"
+                          value={passwordForm.confirmPassword}
+                          onChange={handlePasswordChange}
+                          className="input-field pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPasswords({...showPasswords, confirm: !showPasswords.confirm})}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      
+                      {passwordForm.confirmPassword && (
+                        <div className={`flex items-center gap-2 mt-2 text-sm ${
+                            passwordForm.newPassword === passwordForm.confirmPassword 
+                            ? "text-green-600" 
+                            : "text-destructive"
+                        }`}>
+                            {passwordForm.newPassword === passwordForm.confirmPassword ? (
+                                <>
+                                    <Check className="w-4 h-4" />
+                                    <span>Passwords match</span>
+                                </>
+                            ) : (
+                                <>
+                                    <X className="w-4 h-4" />
+                                    <span>Passwords do not match</span>
+                                </>
+                            )}
+                        </div>
+                      )}
                     </div>
-                    <button className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
-                      Update Password
+                    <button 
+                        onClick={handlePasswordSubmit}
+                        disabled={saving}
+                        className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {saving ? "Updating..." : "Update Password"}
                     </button>
                   </div>
                 </div>
@@ -325,37 +496,19 @@ export default function Settings() {
                         </tr>
                       </thead>
                       <tbody>
-                        <tr className="border-b border-border">
-                          <td className="p-3 font-medium">Admin</td>
-                          <td className="p-3 text-muted-foreground">3 users</td>
-                          <td className="p-3">
-                            <span className="badge badge-success">
-                              Full Access
-                            </span>
-                          </td>
-                        </tr>
-                        <tr className="border-b border-border">
-                          <td className="p-3 font-medium">Manager</td>
-                          <td className="p-3 text-muted-foreground">
-                            12 users
-                          </td>
-                          <td className="p-3">
-                            <span className="badge badge-primary">
-                              Limited Access
-                            </span>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="p-3 font-medium">Employee</td>
-                          <td className="p-3 text-muted-foreground">
-                            141 users
-                          </td>
-                          <td className="p-3">
-                            <span className="badge badge-muted">
-                              Basic Access
-                            </span>
-                          </td>
-                        </tr>
+                        {roleStats.map((role, index) => (
+                          <tr key={index} className="border-b border-border">
+                            <td className="p-3 font-medium">{role.role}</td>
+                            <td className="p-3 text-muted-foreground">
+                              {role.users}
+                            </td>
+                            <td className="p-3">
+                              <span className={`badge badge-${role.badgeColor}`}>
+                                {role.permissions}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -372,23 +525,28 @@ export default function Settings() {
               <div className="space-y-6">
                 {[
                   {
+                    id: "emailNotifications",
                     title: "Email Notifications",
                     description:
                       "Receive email updates about your account activity",
                   },
                   {
+                    id: "pushNotifications",
                     title: "Push Notifications",
                     description: "Get push notifications on your devices",
                   },
                   {
+                    id: "taskReminders",
                     title: "Task Reminders",
                     description: "Get reminded about upcoming task deadlines",
                   },
                   {
+                    id: "meetingAlerts",
                     title: "Meeting Alerts",
                     description: "Receive alerts before scheduled meetings",
                   },
                   {
+                    id: "teamUpdates",
                     title: "Team Updates",
                     description: "Get notified about team member activities",
                   },
@@ -405,13 +563,30 @@ export default function Settings() {
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        defaultChecked={index < 3}
+                        checked={preferences.notifications[item.id] !== false}
+                        onChange={(e) =>
+                          setPreferences({
+                            ...preferences,
+                            notifications: {
+                              ...preferences.notifications,
+                              [item.id]: e.target.checked,
+                            },
+                          })
+                        }
                         className="sr-only peer"
                       />
                       <div className="w-11 h-6 bg-muted rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                     </label>
                   </div>
                 ))}
+              </div>
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={handlePreferencesSubmit}
+                  disabled={saving}
+                  className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
               </div>
             </div>
           )}
@@ -424,31 +599,55 @@ export default function Settings() {
               <div className="space-y-6">
                 <div>
                   <h3 className="font-medium mb-4">Theme</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <button className="p-4 rounded-xl border-2 border-primary bg-card text-center">
-                      <div className="w-full aspect-video bg-background rounded-lg mb-2 border border-border"></div>
-                      <span className="font-medium">Light</span>
-                    </button>
-                    <button className="p-4 rounded-xl border-2 border-border bg-card text-center hover:border-primary/50 transition-colors">
-                      <div className="w-full aspect-video bg-foreground rounded-lg mb-2"></div>
-                      <span className="font-medium">Dark</span>
-                    </button>
-                    <button className="p-4 rounded-xl border-2 border-border bg-card text-center hover:border-primary/50 transition-colors">
-                      <div className="w-full aspect-video bg-gradient-to-r from-background to-foreground rounded-lg mb-2"></div>
-                      <span className="font-medium">System</span>
-                    </button>
+                  <div className="grid grid-cols-2 gap-4">
+                    {["light", "dark"].map((theme) => (
+                      <button
+                        key={theme}
+                        onClick={() =>
+                          setPreferences({ ...preferences, theme })
+                        }
+                        className={`p-4 rounded-xl border-2 ${
+                          preferences.theme === theme
+                            ? "border-primary"
+                            : "border-border"
+                        } bg-card text-center hover:border-primary/50 transition-colors`}>
+                        <div
+                          className={`w-full aspect-video ${
+                            theme === "light"
+                              ? "bg-white border-gray-200"
+                              : "bg-slate-950 border-slate-800"
+                          } rounded-lg mb-2 border`}></div>
+                        <span className="font-medium capitalize">{theme}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
                 <div>
                   <h3 className="font-medium mb-4">Language</h3>
-                  <select className="input-field max-w-xs">
-                    <option>English (US)</option>
-                    <option>English (UK)</option>
-                    <option>Spanish</option>
-                    <option>French</option>
-                    <option>German</option>
+                  <select
+                    value={preferences.language}
+                    onChange={(e) =>
+                      setPreferences({
+                        ...preferences,
+                        language: e.target.value,
+                      })
+                    }
+                    className="input-field max-w-xs">
+                    <option value="en-US">English (US)</option>
+                    <option value="en-UK">English (UK)</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
                   </select>
                 </div>
+              </div>
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={handlePreferencesSubmit}
+                  disabled={saving}
+                  className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
               </div>
             </div>
           )}

@@ -53,7 +53,7 @@ export default function Analytics() {
                 +12% from last month
               </p>
             </div>
-            <div className="p-3 bg-white/20 rounded-xl">
+            <div className="p-3 bg-primary-foreground/20 rounded-xl">
               <Target className="w-6 h-6" />
             </div>
           </div>
@@ -98,8 +98,8 @@ export default function Analytics() {
                 +18 new hires
               </p>
             </div>
-            <div className="p-3 bg-accent/10 rounded-xl">
-              <Users className="w-6 h-6 text-accent" />
+            <div className="p-3 bg-indigo-500/10 rounded-xl">
+              <Users className="w-6 h-6 text-indigo-500" />
             </div>
           </div>
         </div>
@@ -140,7 +140,7 @@ export default function Analytics() {
           <div className="space-y-4">
             {[
               { name: "UI Redesign", progress: 65, color: "bg-primary" },
-              { name: "Security Update", progress: 40, color: "bg-accent" },
+              { name: "Security Update", progress: 40, color: "bg-indigo-500" },
               { name: "Documentation", progress: 80, color: "bg-success" },
               { name: "Q1 Marketing", progress: 25, color: "bg-warning" },
             ].map((project) => (

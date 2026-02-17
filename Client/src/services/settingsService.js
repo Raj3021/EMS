@@ -27,4 +27,22 @@ export const settingsService = {
     });
     return response.data;
   },
+
+  // Get user preferences (theme, language, notifications)
+  getPreferences: async () => {
+    const response = await api.get("/settings");
+    return response.data;
+  },
+
+  // Update user preferences
+  updatePreferences: async (data) => {
+    const response = await api.put("/settings", data);
+    return response.data;
+  },
+
+  // Get role statistics
+  getRoleStats: async () => {
+    const response = await api.get("/settings/roles-stats");
+    return response.data;
+  },
 };

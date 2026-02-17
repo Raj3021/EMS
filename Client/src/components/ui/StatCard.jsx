@@ -15,14 +15,14 @@ export function StatCard({
 
             {change && (
               <p className="text-sm mt-2 opacity-80">
-                <span className="bg-white/20 px-2 py-0.5 rounded-full">
+                <span className="bg-primary-foreground/20 px-2 py-0.5 rounded-full">
                   {change}
                 </span>
               </p>
             )}
           </div>
 
-          <div className="p-3 bg-white/20 rounded-xl">
+          <div className="p-3 bg-primary-foreground/20 rounded-xl">
             <Icon className="w-6 h-6" />
           </div>
         </div>

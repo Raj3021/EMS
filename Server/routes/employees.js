@@ -59,9 +59,13 @@ router.post(
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT * FROM employees
-       WHERE tenant_id = $1 AND is_active = true
-       ORDER BY created_at DESC`,
+      `SELECT e.*, r.name as role_name
+       FROM employees e
+       LEFT JOIN users u ON e.user_id = u.id
+       LEFT JOIN user_roles ur ON u.id = ur.user_id
+       LEFT JOIN roles r ON ur.role_id = r.id
+       WHERE e.tenant_id = $1
+       ORDER BY e.created_at DESC`,
       [req.user.tenantId],
     );
 
@@ -114,7 +118,7 @@ router.get("/current/settings", authMiddleware, async (req, res) => {
 
     // Get employee details
     const employeeResult = await pool.query(
-      `SELECT first_name, last_name, phone, designation, department
+      `SELECT first_name, last_name, phone, designation, department, status
        FROM employees
        WHERE user_id = $1 AND tenant_id = $2`,
       [req.user.userId, req.user.tenantId],
@@ -140,6 +144,7 @@ router.get("/current/settings", authMiddleware, async (req, res) => {
         phone: employeeData.phone,
         designation: employeeData.designation,
         department: employeeData.department,
+        status: employeeData.status || "active",
       },
       company: {
         name: tenantData.name,
@@ -249,6 +254,36 @@ router.put("/current/company", authMiddleware, async (req, res) => {
 });
 
 /**
+ * UPDATE CURRENT USER STATUS
+ */
+router.put("/current/status", authMiddleware, async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!["active", "busy", "offline"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    const result = await pool.query(
+      `UPDATE employees
+       SET status = $1, updated_at = NOW()
+       WHERE user_id = $2 AND tenant_id = $3
+       RETURNING status`,
+      [status, req.user.userId, req.user.tenantId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "Employee not found or tenant mismatch" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
  * SOFT DELETE EMPLOYEE
  */
 router.delete(
@@ -256,23 +291,49 @@ router.delete(
   authMiddleware,
   requirePermission("create_employee"),
   async (req, res) => {
+    const client = await pool.connect();
     try {
-      const result = await pool.query(
-        `UPDATE employees
-         SET is_active=false
-         WHERE id=$1 AND tenant_id=$2`,
-        [req.params.id, req.user.tenantId],
+      await client.query("BEGIN");
+
+      // First get the employee to find the associated user_id
+      const empResult = await client.query(
+        "SELECT user_id FROM employees WHERE id = $1 AND tenant_id = $2",
+        [req.params.id, req.user.tenantId]
       );
 
-      if (result.rowCount === 0) {
+      if (empResult.rowCount === 0) {
+        await client.query("ROLLBACK");
         return res.status(404).json({ message: "Employee not found" });
       }
 
-      res.json({ message: "Employee deactivated" });
+      const userId = empResult.rows[0].user_id;
+
+      // Delete the employee record
+      await client.query(
+        "DELETE FROM employees WHERE id = $1 AND tenant_id = $2",
+        [req.params.id, req.user.tenantId]
+      );
+
+      // If there is an associated user, delete them too
+      if (userId) {
+        await client.query("DELETE FROM users WHERE id = $1 AND tenant_id = $2", [
+          userId,
+          req.user.tenantId,
+        ]);
+        
+        // Note: Related tables (auth_sessions, etc.) should cascade delete based on schema
+      }
+
+      await client.query("COMMIT");
+      res.json({ message: "Employee and associated user removed successfully" });
     } catch (err) {
+      await client.query("ROLLBACK");
+      console.error(err);
       res.status(500).json({ message: "Server error" });
+    } finally {
+      client.release();
     }
-  },
+  }
 );
 
 export default router;

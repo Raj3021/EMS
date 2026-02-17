@@ -103,6 +103,7 @@ CREATE TABLE public.employees (
     joining_date date,
     profile_completed boolean DEFAULT false,
     is_active boolean DEFAULT true,
+    status character varying(20) DEFAULT 'active',
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT employees_pkey PRIMARY KEY (id),
@@ -151,3 +152,66 @@ CREATE TABLE public.refresh_tokens (
 -- Indexes for refresh_tokens
 CREATE INDEX idx_refresh_tokens_token_hash ON public.refresh_tokens USING btree (token_hash);
 CREATE INDEX idx_refresh_tokens_user_id ON public.refresh_tokens USING btree (user_id);
+
+-- Table: user_settings
+CREATE TABLE public.user_settings (
+    user_id uuid NOT NULL,
+    theme character varying(20) DEFAULT 'light',
+    language character varying(10) DEFAULT 'en-US',
+    notifications jsonb DEFAULT '{}',
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT user_settings_pkey PRIMARY KEY (user_id),
+    CONSTRAINT user_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE
+);
+
+-- ============================================
+-- CHAT SYSTEM TABLES
+-- ============================================
+
+-- Table: conversations
+CREATE TABLE public.conversations (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    name character varying(255),
+    is_group boolean DEFAULT false,
+    created_by uuid NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT conversations_pkey PRIMARY KEY (id),
+    CONSTRAINT conversations_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE,
+    CONSTRAINT conversations_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE CASCADE
+);
+
+-- Table: conversation_participants
+CREATE TABLE public.conversation_participants (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    conversation_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    joined_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    last_read_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT conversation_participants_pkey PRIMARY KEY (id),
+    CONSTRAINT conversation_participants_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id) ON DELETE CASCADE,
+    CONSTRAINT conversation_participants_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
+    CONSTRAINT conversation_participants_unique UNIQUE (conversation_id, user_id)
+);
+
+-- Table: messages
+CREATE TABLE public.messages (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    conversation_id uuid NOT NULL,
+    sender_id uuid NOT NULL,
+    content text NOT NULL,
+    message_type character varying(20) DEFAULT 'text',
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT messages_pkey PRIMARY KEY (id),
+    CONSTRAINT messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id) ON DELETE CASCADE,
+    CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.users(id) ON DELETE CASCADE
+);
+
+-- Indexes for chat performance
+CREATE INDEX idx_conversations_tenant ON public.conversations USING btree (tenant_id);
+CREATE INDEX idx_conversations_updated_at ON public.conversations USING btree (updated_at DESC);
+CREATE INDEX idx_messages_conversation ON public.messages USING btree (conversation_id, created_at DESC);
+CREATE INDEX idx_participants_conversation ON public.conversation_participants USING btree (conversation_id);
+CREATE INDEX idx_participants_user ON public.conversation_participants USING btree (user_id);
