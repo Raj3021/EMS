@@ -34,10 +34,12 @@ export const getConversation = async (conversationId) => {
  */
 export const createConversation = async (participantIds, isGroup = false, name = null) => {
   try {
+    console.log("DEBUG chatService - Sending:", { participantIds, isGroup, name });
+    
     const response = await api.post("/chat/conversations", {
       participant_ids: participantIds,
       is_group: isGroup,
-      name,
+      name: name,
     });
     return response.data;
   } catch (error) {
@@ -124,6 +126,34 @@ export const markConversationAsRead = async (conversationId) => {
     return response.data;
   } catch (error) {
     console.error("Error marking conversation as read:", error);
+    throw error;
+  }
+};
+
+/**
+ * Clear all messages in a conversation
+ * @param {String} conversationId
+ */
+export const clearChat = async (conversationId) => {
+  try {
+    const response = await api.delete(`/chat/conversations/${conversationId}/messages`);
+    return response.data;
+  } catch (error) {
+    console.error("Error clearing chat:", error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a conversation
+ * @param {String} conversationId
+ */
+export const deleteConversation = async (conversationId) => {
+  try {
+    const response = await api.delete(`/chat/conversations/${conversationId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting conversation:", error);
     throw error;
   }
 };

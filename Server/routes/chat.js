@@ -55,8 +55,8 @@ router.get("/conversations", async (req, res) => {
           SELECT json_agg(
             json_build_object(
               'user_id', u.id,
-              'first_name', e.first_name,
-              'last_name', e.last_name,
+              'first_name', COALESCE(e.first_name, SPLIT_PART(u.email, '@', 1)),
+              'last_name', COALESCE(e.last_name, ''),
               'email', u.email,
               'status', e.status
             )
@@ -166,6 +166,31 @@ router.get("/conversations/:id", async (req, res) => {
 });
 
 /**
+ * PUT /chat/messages/:conversationId/read
+ * Mark all messages in a conversation as read
+ */
+router.put("/messages/:conversationId/read", async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { conversationId } = req.params;
+
+    // Update last_read_at timestamp for this user in this conversation
+    await pool.query(
+      `UPDATE conversation_participants 
+       SET last_read_at = CURRENT_TIMESTAMP 
+       WHERE conversation_id = $1 AND user_id = $2`,
+      [conversationId, userId]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error marking conversation as read:", error);
+    res.status(500).json({ message: "Failed to mark as read" });
+  }
+});
+
+
+/**
  * POST /chat/conversations
  * Create a new conversation
  * Body: { participant_ids: [uuid], name?: string, is_group?: boolean }
@@ -174,9 +199,12 @@ router.post("/conversations", async (req, res) => {
   const client = await pool.connect();
   try {
     const { userId, tenantId } = req.user;
+    
+    console.log("DEBUG - Full request body:", JSON.stringify(req.body, null, 2));
+    
     const { participant_ids, name, is_group } = req.body;
 
-    // console.log("Creating conversation:", { userId, tenantId, participant_ids, is_group });
+    console.log("DEBUG - Destructured values:", { participant_ids, name, is_group });
 
     if (!participant_ids || !Array.isArray(participant_ids) || participant_ids.length === 0) {
       return res.status(400).json({ message: "participant_ids array is required" });
@@ -235,6 +263,14 @@ router.post("/conversations", async (req, res) => {
       RETURNING id, name, is_group, created_at, updated_at
     `;
     const convValues = [tenantId, name || null, is_group || false, userId];
+    
+    console.log("DEBUG - Creating conversation with values:", {
+      tenantId,
+      name: name || null,
+      is_group: is_group || false,
+      userId,
+      convValues
+    });
     // console.log("Executing conversation insert...");
     
     const convResult = await client.query(convQuery, convValues);
@@ -265,11 +301,31 @@ router.post("/conversations", async (req, res) => {
     }
 
     await client.query("COMMIT");
-    // console.log("Conversation created successfully:", conversationId);
 
-    // Fetch complete conversation details to return (including participants)
-    // Just return the conversation object for now, cleaner
-    res.status(201).json(conversation);
+    // Fetch complete conversation details with participants
+    const fullConvResult = await client.query(
+      `
+      SELECT 
+        c.id, c.name, c.is_group, c.created_at, c.updated_at,
+        json_agg(
+          json_build_object(
+            'user_id', cp.user_id,
+            'first_name', COALESCE(e.first_name, SPLIT_PART(u.email, '@', 1)),
+            'last_name', COALESCE(e.last_name, ''),
+            'email', u.email
+          )
+        ) as participants
+      FROM conversations c
+      LEFT JOIN conversation_participants cp ON c.id = cp.conversation_id
+      LEFT JOIN users u ON cp.user_id = u.id
+      LEFT JOIN employees e ON u.id = e.user_id
+      WHERE c.id = $1
+      GROUP BY c.id
+      `,
+      [conversationId]
+    );
+
+    res.status(201).json(fullConvResult.rows[0]);
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error creating conversation (POST /chat/conversations):", error);
@@ -389,39 +445,91 @@ router.post("/messages", async (req, res) => {
 });
 
 /**
- * PUT /chat/messages/:conversationId/read
- * Mark all messages in a conversation as read
+ * DELETE /chat/conversations/:id/messages
+ * Clear all messages in a conversation (both-sided)
  */
-router.put("/messages/:conversationId/read", async (req, res) => {
+router.delete("/conversations/:id/messages", async (req, res) => {
   try {
     const { userId } = req.user;
-    const { conversationId } = req.params;
+    const { id } = req.params;
 
     // Verify user is a participant
     const participantCheck = await pool.query(
       `SELECT 1 FROM conversation_participants 
        WHERE conversation_id = $1 AND user_id = $2`,
-      [conversationId, userId]
+      [id, userId]
     );
 
     if (participantCheck.rowCount === 0) {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    // Update last_read_at timestamp
+    // Delete all messages in the conversation
     await pool.query(
-      `
-      UPDATE conversation_participants 
-      SET last_read_at = CURRENT_TIMESTAMP 
-      WHERE conversation_id = $1 AND user_id = $2
-      `,
-      [conversationId, userId]
+      `DELETE FROM messages WHERE conversation_id = $1`,
+      [id]
     );
 
-    res.json({ message: "Messages marked as read" });
+    // Update conversation timestamp
+    await pool.query(
+      `UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [id]
+    );
+
+    // Notify all participants via socket
+    if (req.io) {
+      req.io.to(`conversation:${id}`).emit("chat_cleared", { conversation_id: id });
+    }
+
+    res.json({ message: "Chat cleared for everyone" });
   } catch (error) {
-    console.error("Error marking messages as read:", error);
-    res.status(500).json({ message: "Failed to mark messages as read" });
+    console.error("Error clearing chat messages:", error);
+    res.status(500).json({ message: "Failed to clear chat" });
+  }
+});
+
+/**
+ * DELETE /chat/conversations/:id
+ * Delete a conversation for everyone (both-sided)
+ */
+router.delete("/conversations/:id", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { userId } = req.user;
+    const { id } = req.params;
+
+    // Verify user is a participant
+    const participantCheck = await client.query(
+      `SELECT 1 FROM conversation_participants 
+       WHERE conversation_id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+
+    if (participantCheck.rowCount === 0) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    await client.query("BEGIN");
+
+    // We delete the conversation itself. 
+    // Foreign keys with ON DELETE CASCADE will handle participants and messages.
+    await client.query(`DELETE FROM conversations WHERE id = $1`, [id]);
+
+    await client.query("COMMIT");
+
+    // Notify all participants via socket BEFORE they are removed from the room 
+    // (Actually the conversation is deleted in DB, but players might still be in the socket room)
+    if (req.io) {
+      req.io.to(`conversation:${id}`).emit("conversation_deleted", { conversation_id: id });
+    }
+
+    res.json({ message: "Conversation deleted for everyone" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error deleting conversation:", error);
+    res.status(500).json({ message: "Failed to delete conversation" });
+  } finally {
+    client.release();
   }
 });
 

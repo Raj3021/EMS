@@ -67,35 +67,14 @@ export function NewChatModal({ isOpen, onClose, onChatCreated }) {
       setCreating(true);
       const isGroup = selectedUsers.length > 1;
       
-      // If single user, we don't need a group name
-      // If group chat, require a name? Optional.
+      console.log("DEBUG NewChatModal - Before createConversation:", {
+        selectedUsers,
+        isGroup,
+        groupName,
+        nameToSend: isGroup ? groupName : null
+      });
       
       const newChat = await createConversation(
-        [...selectedUsers, currentUser.id], // Include current user? Usually backend handles this or we send participants.
-        // Wait, looking at chatService.createConversation:
-        // export const createConversation = async (participantIds, isGroup = false, name = null) => { ... }
-        // The backend endpoint:
-        // router.post("/conversations", async (req, res) => {
-        //   const { participant_ids, name, is_group } = req.body;
-        //   ...
-        //   // Add creator as participant
-        //   await client.query("INSERT INTO conversation_participants ... VALUES ($1, $2)", [conversationId, userId]);
-        //   // Add other participants
-        //   for (const participantId of participant_ids) { ... }
-        // })
-        // So I should pass ONLY the OTHER participants in participant_ids?
-        // Let's check the backend logic again.
-        // Backend:
-        // const { participant_ids ... } = req.body;
-        // ...
-        // // Add creator
-        // await client.query(..., [conversationId, userId]);
-        // // Add others
-        // for (const participantId of participant_ids) {
-        //   if (participantId !== userId) { ... }
-        // }
-        // So it handles filtering out the creator if they are in the list, or adding them if not. 
-        // But the safest bet is to just pass the IDs of the people I want to chat WITH.
         selectedUsers, 
         isGroup, 
         isGroup ? groupName : null

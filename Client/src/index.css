@@ -153,4 +153,16 @@
   .btn-secondary {
     @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
   }
+
+  .chat-bubble {
+    @apply rounded-2xl px-4 py-2 break-words;
+  }
+
+  .chat-bubble-sent {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  .chat-bubble-received {
+    @apply bg-muted text-foreground;
+  }
 }

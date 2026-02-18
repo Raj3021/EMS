@@ -37,6 +37,12 @@ const __dirname = path.dirname(__filename);
 app.use(express.json());
 app.use(cors());
 
+// Attach io to req for routes
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 // Serve uploaded files statically
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
@@ -66,18 +72,18 @@ const onlineUsers = new Map();
 io.use(async (socket, next) => {
   try {
     const token = socket.handshake.auth.token;
-    
+
     if (!token) {
       return next(new Error("Authentication error: Token missing"));
     }
 
     // Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
+
     // Verify user exists and is active
     const userResult = await pool.query(
       "SELECT id, tenant_id FROM users WHERE id = $1 AND is_active = true",
-      [decoded.userId]
+      [decoded.userId],
     );
 
     if (userResult.rowCount === 0) {
@@ -87,7 +93,7 @@ io.use(async (socket, next) => {
     // Attach user info to socket
     socket.userId = decoded.userId;
     socket.tenantId = decoded.tenantId;
-    
+
     next();
   } catch (error) {
     console.error("Socket auth error:", error);
@@ -107,14 +113,16 @@ io.on("connection", async (socket) => {
   try {
     const conversations = await pool.query(
       `SELECT conversation_id FROM conversation_participants WHERE user_id = $1`,
-      [userId]
+      [userId],
     );
 
     conversations.rows.forEach((row) => {
       socket.join(`conversation:${row.conversation_id}`);
     });
 
-    console.log(`User ${userId} joined ${conversations.rowCount} conversation rooms`);
+    console.log(
+      `User ${userId} joined ${conversations.rowCount} conversation rooms`,
+    );
   } catch (error) {
     console.error("Error joining conversation rooms:", error);
   }
@@ -128,7 +136,7 @@ io.on("connection", async (socket) => {
       // Verify user is a participant
       const isParticipant = await pool.query(
         `SELECT 1 FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2`,
-        [conversationId, userId]
+        [conversationId, userId],
       );
 
       if (isParticipant.rowCount > 0) {
@@ -148,7 +156,7 @@ io.on("connection", async (socket) => {
       // Verify user is a participant
       const isParticipant = await pool.query(
         `SELECT 1 FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2`,
-        [conversation_id, userId]
+        [conversation_id, userId],
       );
 
       if (isParticipant.rowCount === 0) {
@@ -161,13 +169,13 @@ io.on("connection", async (socket) => {
         `INSERT INTO messages (conversation_id, sender_id, content, message_type)
          VALUES ($1, $2, $3, $4)
          RETURNING id, conversation_id, sender_id, content, message_type, created_at`,
-        [conversation_id, userId, content, message_type]
+        [conversation_id, userId, content, message_type],
       );
 
       // Update conversation timestamp
       await pool.query(
         `UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-        [conversation_id]
+        [conversation_id],
       );
 
       // Get sender info
@@ -175,7 +183,7 @@ io.on("connection", async (socket) => {
         `SELECT e.first_name, e.last_name 
          FROM employees e 
          WHERE e.user_id = $1`,
-        [userId]
+        [userId],
       );
 
       const message = {
@@ -197,7 +205,6 @@ io.on("connection", async (socket) => {
         },
         updated_at: new Date(),
       });
-
     } catch (error) {
       console.error("Error sending message:", error);
       socket.emit("error", { message: "Failed to send message" });
@@ -226,7 +233,7 @@ io.on("connection", async (socket) => {
   socket.on("disconnect", () => {
     console.log(`❌ User disconnected: ${userId}`);
     onlineUsers.delete(userId);
-    
+
     // Broadcast user offline status
     io.emit("user_status", { userId, status: "offline" });
   });
@@ -238,4 +245,3 @@ httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🔌 Socket.IO ready for real-time messaging`);
 });
-

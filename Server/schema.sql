@@ -215,3 +215,31 @@ CREATE INDEX idx_conversations_updated_at ON public.conversations USING btree (u
 CREATE INDEX idx_messages_conversation ON public.messages USING btree (conversation_id, created_at DESC);
 CREATE INDEX idx_participants_conversation ON public.conversation_participants USING btree (conversation_id);
 CREATE INDEX idx_participants_user ON public.conversation_participants USING btree (user_id);
+
+-- ============================================
+-- NOTES SYSTEM TABLES
+-- ============================================
+
+-- Table: notes
+CREATE TABLE public.notes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    title character varying(255),
+    content text,
+    tags text[],
+    linked_to character varying(255),
+    color character varying(20) DEFAULT 'default',
+    is_pinned boolean DEFAULT false,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT notes_pkey PRIMARY KEY (id),
+    CONSTRAINT notes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
+    CONSTRAINT notes_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE
+);
+
+-- Indexes for notes
+CREATE INDEX idx_notes_user_id ON public.notes USING btree (user_id);
+CREATE INDEX idx_notes_tenant_id ON public.notes USING btree (tenant_id);
+CREATE INDEX idx_notes_created_at ON public.notes USING btree (created_at DESC);
+
