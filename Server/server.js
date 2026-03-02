@@ -9,7 +9,10 @@ import testRoutes from "./routes/test.js";
 import inviteRoutes from "./routes/invites.js";
 import settingsRoutes from "./routes/settings.js";
 import chatRoutes from "./routes/chat.js";
+// import chatRoutes from "./routes/chat.js";
 import uploadRoutes from "./routes/upload.js";
+import notesRoutes from "./routes/notes.js";
+
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -54,6 +57,8 @@ app.use("/invites", inviteRoutes);
 app.use("/settings", settingsRoutes);
 app.use("/chat", chatRoutes);
 app.use("/upload", uploadRoutes);
+app.use("/notes", notesRoutes);
+
 // app.use("/accept-invite", authRoutes);
 
 // Health check
