@@ -14,7 +14,16 @@ import { employeeService } from "@/services/employeeService";
 import { useEffect } from "react";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 export default function Employees() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +35,7 @@ export default function Employees() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [showMenu, setShowMenu] = useState(null);
   const menuRef = useRef(null);
 
@@ -131,6 +141,27 @@ export default function Employees() {
     setSelectedEmployee(employee);
     setShowProfileModal(true);
     setShowMenu(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!employeeToDelete) return;
+    try {
+      if (employeeToDelete.type === "invite") {
+        const inviteId = employeeToDelete.id.replace("invite-", "");
+        await api.delete(`/invites/${inviteId}`);
+        toast.success("Invite removed successfully");
+        setEmployees((prev) => prev.filter((e) => e.id !== employeeToDelete.id));
+      } else {
+        await employeeService.delete(employeeToDelete.id);
+        toast.success("Employee and associated user removed successfully");
+        setEmployees((prev) => prev.filter((e) => e.id !== employeeToDelete.id));
+      }
+    } catch (err) {
+      toast.error("Failed to remove employee");
+      console.error(err);
+    } finally {
+      setEmployeeToDelete(null);
+    }
   };
 
   const handleInviteChange = (field, value) => {
@@ -344,24 +375,8 @@ export default function Employees() {
                             </button>
                             {canManageEmployees && (
                               <button 
-                                onClick={async () => {
-                                  if (window.confirm(`Are you sure you want to remove ${employee.name}?`)) {
-                                    try {
-                                      if (employee.type === 'invite') {
-                                         const inviteId = employee.id.replace('invite-', '');
-                                         await api.delete(`/invites/${inviteId}`);
-                                         toast.success("Invite removed successfully");
-                                         setEmployees(prev => prev.filter(e => e.id !== employee.id));
-                                      } else {
-                                          await employeeService.delete(employee.id);
-                                          toast.success("Employee and associated user removed successfully");
-                                          setEmployees(prev => prev.filter(e => e.id !== employee.id));
-                                      }
-                                    } catch (err) {
-                                      toast.error("Failed to remove employee");
-                                      console.error(err);
-                                    }
-                                  }
+                                onClick={() => {
+                                  setEmployeeToDelete(employee);
                                   setShowMenu(null);
                                 }}
                                 className="w-full p-2 rounded-lg text-left text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2">
@@ -554,6 +569,32 @@ export default function Employees() {
           </div>
         )}
       </Modal>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={!!employeeToDelete}
+        onOpenChange={(open) => !open && setEmployeeToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently remove{" "}
+              <span className="font-semibold text-foreground">
+                "{employeeToDelete?.name}"
+              </span>{" "}
+              from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white">
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -243,3 +243,22 @@ CREATE INDEX idx_notes_user_id ON public.notes USING btree (user_id);
 CREATE INDEX idx_notes_tenant_id ON public.notes USING btree (tenant_id);
 CREATE INDEX idx_notes_created_at ON public.notes USING btree (created_at DESC);
 
+CREATE TABLE IF NOT EXISTS public.files (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    name character varying(255) NOT NULL,
+    type character varying(50) NOT NULL,
+    size integer NOT NULL,
+    url text NOT NULL,
+    cloudinary_id character varying(255) NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT files_pkey PRIMARY KEY (id),
+    CONSTRAINT files_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE,
+    CONSTRAINT files_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE
+);
+
+-- Creating indexes for faster fetching
+CREATE INDEX IF NOT EXISTS idx_files_tenant ON public.files USING btree (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_files_user ON public.files USING btree (user_id);

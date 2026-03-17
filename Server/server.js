@@ -12,6 +12,7 @@ import chatRoutes from "./routes/chat.js";
 // import chatRoutes from "./routes/chat.js";
 import uploadRoutes from "./routes/upload.js";
 import notesRoutes from "./routes/notes.js";
+import fileRoutes from "./routes/files.js";
 
 import cors from "cors";
 import path from "path";
@@ -58,6 +59,7 @@ app.use("/settings", settingsRoutes);
 app.use("/chat", chatRoutes);
 app.use("/upload", uploadRoutes);
 app.use("/notes", notesRoutes);
+app.use("/files", fileRoutes);
 
 // app.use("/accept-invite", authRoutes);
 

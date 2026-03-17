@@ -24,12 +24,12 @@ router.post("/login", async (req, res) => {
     // Identify the correct tenant/user. If multiple, we might need logic, but for now take the first active one or just the first one.
     // Better approach: Find the user directly by email and verify password.
     // But since the current logic relies on tenant_id first... let's stick to it but maybe iterate?
-    
+
     // Debugging: what did we find?
     // console.log("Found users with this email:", tenant.rows);
 
     const tenantDomain = tenant.rows[0].tenant_id;
-    
+
     // 2. Find user within the tenant
     const userResult = await pool.query(
       "SELECT * FROM users WHERE email = $1 AND is_active = true",
@@ -37,23 +37,25 @@ router.post("/login", async (req, res) => {
     );
 
     if (userResult.rowCount === 0) {
-      console.log("Login failed: User found in initial check but not found in active users query (status mismatch?)");
+      console.log(
+        "Login failed: User found in initial check but not found in active users query (status mismatch?)",
+      );
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
     // There might be multiple users if multi-tenant. For now, let's try to match password against ANY of the found users.
     // If we find a match, use that user.
-    
+
     let user = null;
     let isMatch = false;
 
     for (const u of userResult.rows) {
-        const match = await bcrypt.compare(password, u.password_hash);
-        if (match) {
-            user = u;
-            isMatch = true;
-            break;
-        }
+      const match = await bcrypt.compare(password, u.password_hash);
+      if (match) {
+        user = u;
+        isMatch = true;
+        break;
+      }
     }
 
     if (!isMatch || !user) {
@@ -179,7 +181,7 @@ router.post("/accept-invite", async (req, res) => {
     // 1️⃣ Validate invite - Check existence first for better error messages
     const inviteCheck = await client.query(
       "SELECT * FROM public.invites WHERE token = $1",
-      [token]
+      [token],
     );
 
     if (inviteCheck.rowCount === 0) {
@@ -191,17 +193,19 @@ router.post("/accept-invite", async (req, res) => {
 
     if (invite.accepted_at) {
       await client.query("ROLLBACK");
-      return res.status(409).json({ error: "This invite has already been accepted." });
+      return res
+        .status(409)
+        .json({ error: "This invite has already been accepted." });
     }
 
     if (new Date(invite.expires_at) < new Date()) {
       await client.query("ROLLBACK");
       return res.status(410).json({ error: "This invite link has expired." });
     }
-    
+
     // If we are here, invite is valid!
     // Continue with existing logic... but we already have 'invite' object.
-    
+
     /* 
     const inviteResult = await client.query(
       `
