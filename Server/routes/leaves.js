@@ -124,7 +124,8 @@ router.post("/balances", authMiddleware, async (req, res) => {
       `SELECT ur.user_id 
        FROM user_roles ur 
        JOIN roles r ON ur.role_id = r.id 
-       WHERE r.tenant_id = $1 AND LOWER(r.name) = LOWER($2)`,
+       JOIN users u ON ur.user_id = u.id
+       WHERE u.tenant_id = $1 AND LOWER(r.name) = LOWER($2)`,
       [req.user.tenantId, target_role]
     );
 
