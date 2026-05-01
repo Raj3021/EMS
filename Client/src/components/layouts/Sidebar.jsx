@@ -18,6 +18,7 @@ import {
   Heading1,
   Check,
   ChevronUp,
+  CreditCard,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSocket } from "@/context/SocketContext";
@@ -32,6 +33,7 @@ const navItems = [
   { icon: Calendar, label: "Leaves", path: "/leaves" },
   { icon: FolderOpen, label: "Files", path: "/files" },
   { icon: BarChart3, label: "Analytics", path: "/analytics" },
+  { icon: CreditCard, label: "Subscription", path: "/subscription", adminOnly: true },
 ];
 
 
@@ -127,7 +129,11 @@ export function Sidebar({ collapsed, onToggle }) {
 
       {/* Navigation */}
       <nav className="flex-1 min-h-0 p-4 space-y-1 overflow-y-auto">
-        {navItems.filter(item => item.label !== "Analytics" || isAdmin).map((item) => {
+        {navItems.filter(item => {
+          if (item.adminOnly && !isAdmin) return false;
+          if (item.label === "Analytics" && !isAdmin) return false;
+          return true;
+        }).map((item) => {
           const isActive = location.pathname === item.path;
           const isChat = item.path === "/chat";
           

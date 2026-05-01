@@ -19,6 +19,7 @@ import leaveRoutes from "./routes/leaves.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import analyticsRoutes from "./routes/analytics.js";
 import meetingsRoutes from "./routes/meetings.js";
+import subscriptionRoutes from "./routes/subscription.js";
 
 import cors from "cors";
 import path from "path";
@@ -72,6 +73,7 @@ app.use("/leaves", leaveRoutes);
 app.use("/dashboard", dashboardRoutes);
 app.use("/analytics", analyticsRoutes);
 app.use("/meetings", meetingsRoutes);
+app.use("/subscription", subscriptionRoutes);
 
 // app.use("/accept-invite", authRoutes);
 

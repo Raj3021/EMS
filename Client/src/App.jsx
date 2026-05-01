@@ -14,6 +14,7 @@ import Chat from "./pages/Chat";
 import Leaves from "./pages/Leaves";
 import Notes from "./pages/Notes";
 import Settings from "./pages/Settings";
+import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
 import "./index.css";
 import ProtectedRoute from "./pages/ProtectedRoute";
@@ -112,6 +113,14 @@ function App() {
           element={
             <DashboardLayout>
               <Settings />
+            </DashboardLayout>
+          }
+        />
+        <Route
+          path="/subscription"
+          element={
+            <DashboardLayout>
+              <Subscription />
             </DashboardLayout>
           }
         />
