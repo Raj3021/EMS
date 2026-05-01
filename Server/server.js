@@ -13,6 +13,12 @@ import chatRoutes from "./routes/chat.js";
 import uploadRoutes from "./routes/upload.js";
 import notesRoutes from "./routes/notes.js";
 import fileRoutes from "./routes/files.js";
+import projectRoutes from "./routes/projects.js";
+import taskRoutes from "./routes/tasks.js";
+import leaveRoutes from "./routes/leaves.js";
+import dashboardRoutes from "./routes/dashboard.js";
+import analyticsRoutes from "./routes/analytics.js";
+import meetingsRoutes from "./routes/meetings.js";
 
 import cors from "cors";
 import path from "path";
@@ -60,6 +66,12 @@ app.use("/chat", chatRoutes);
 app.use("/upload", uploadRoutes);
 app.use("/notes", notesRoutes);
 app.use("/files", fileRoutes);
+app.use("/projects", projectRoutes);
+app.use("/tasks", taskRoutes);
+app.use("/leaves", leaveRoutes);
+app.use("/dashboard", dashboardRoutes);
+app.use("/analytics", analyticsRoutes);
+app.use("/meetings", meetingsRoutes);
 
 // app.use("/accept-invite", authRoutes);
 
@@ -115,6 +127,9 @@ io.on("connection", async (socket) => {
 
   // Store user as online
   onlineUsers.set(userId, socket.id);
+
+  // Join personal room for targeted notifications (meetings, etc.)
+  socket.join(`user:${userId}`);
 
   // Get user's conversations and join rooms
   try {

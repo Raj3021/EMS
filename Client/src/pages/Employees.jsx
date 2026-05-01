@@ -14,6 +14,8 @@ import { employeeService } from "@/services/employeeService";
 import { useEffect } from "react";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
+import { formatDate } from "@/utils/formatDate";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +52,13 @@ export default function Employees() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  // Close dropdown / modals on Escape — priority: menu > profile modal > add modal
+  useEscapeKey(() => {
+    if (showMenu) { setShowMenu(null); return; }
+    if (showProfileModal) { setShowProfileModal(false); return; }
+    if (showAddModal) { handleCloseAddModal(); return; }
+  }, !!(showMenu || showProfileModal || showAddModal));
   const [inviteForm, setInviteForm] = useState({
     firstName: "",
     lastName: "",
@@ -79,7 +88,7 @@ export default function Employees() {
         department: emp.department || 'Unassigned',
         status: emp.status || (emp.is_active ? 'active' : 'inactive'),
         avatar: `${emp.first_name[0]}${emp.last_name ? emp.last_name[0] : ''}`.toUpperCase(),
-        joinDate: new Date(emp.joining_date || emp.created_at).toLocaleDateString(),
+        joinDate: formatDate(emp.joining_date || emp.created_at),
         type: 'employee'
       }));
 
@@ -235,14 +244,12 @@ export default function Employees() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Employees</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your team members and their roles
-          </p>
+          <p className="text-muted-foreground mt-0.5 text-sm">Manage your team members and their roles</p>
         </div>
         {canManageEmployees && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors">
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 transition-colors text-sm">
             <Plus className="w-4 h-4" />
             Add Employee
           </button>
@@ -251,19 +258,19 @@ export default function Employees() {
 
       {/* Search and Filters */}
       <div className="dashboard-card">
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search employees..."
+              placeholder="Search by name, email, or role..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="input-field pl-10"
             />
           </div>
-          <select 
-            className="input-field sm:w-48"
+          <select
+            className="input-field sm:w-44"
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
           >
@@ -274,8 +281,8 @@ export default function Employees() {
             <option value="sales">Sales</option>
             <option value="hr">Human Resources</option>
           </select>
-          <select 
-            className="input-field sm:w-40"
+          <select
+            className="input-field sm:w-36"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
@@ -290,96 +297,91 @@ export default function Employees() {
       </div>
 
       {/* Employee Table */}
-      <div className="dashboard-card min-h-[500px] mb-8 pb-24">
+      <div className="dashboard-card min-h-[500px] mb-8 pb-6 overflow-hidden">
         {loading ? (
-             <div className="p-8 text-center text-muted-foreground">Loading employees...</div>
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center space-y-3">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-muted-foreground text-sm">Loading employees...</p>
+            </div>
+          </div>
         ) : (
-        <div className="overflow-x-auto min-h-[400px]">
+        <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="table-header">
-                <th className="text-left p-4 rounded-l-lg">Employee</th>
-                <th className="text-left p-4">Role</th>
-                <th className="text-left p-4">Department</th>
-                <th className="text-left p-4">Status</th>
-                <th className="text-left p-4">Join Date</th>
-                <th className="text-right p-4 rounded-r-lg">Actions</th>
+              <tr className="text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">
+                <th className="text-left px-4 py-3.5">Employee</th>
+                <th className="text-left px-4 py-3.5">Role</th>
+                <th className="text-left px-4 py-3.5">Department</th>
+                <th className="text-left px-4 py-3.5">Status</th>
+                <th className="text-left px-4 py-3.5">Joined</th>
+                <th className="text-right px-4 py-3.5">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border">
               {filteredEmployees.map((employee) => (
                 <tr
                   key={employee.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                  <td className="p-4">
+                  className="hover:bg-muted/30 transition-colors group">
+                  <td className="px-4 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className="avatar">{employee.avatar}</div>
+                      <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary font-bold text-sm flex items-center justify-center flex-shrink-0">{employee.avatar}</div>
                       <div>
-                        <p className="font-medium">{employee.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {employee.email}
-                        </p>
+                        <p className="font-semibold text-sm text-foreground">{employee.name}</p>
+                        <p className="text-xs text-muted-foreground">{employee.email}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="p-4 text-muted-foreground">{employee.role}</td>
-                  <td className="p-4">
-                    <span className="badge badge-muted">
-                      {employee.department}
-                    </span>
+                  <td className="px-4 py-3.5 text-sm text-muted-foreground">{employee.role}</td>
+                  <td className="px-4 py-3.5">
+                    <span className="badge badge-muted">{employee.department}</span>
                   </td>
-                  <td className="p-4">
-                    <span
-                      className={`badge ${
-                        employee.status === "active"
-                          ? "badge-success"
-                          : employee.status === "busy"
-                            ? "badge-warning"
-                            : "badge-muted"
-                      }`}>
+                  <td className="px-4 py-3.5">
+                    <span className={`badge ${
+                      employee.status === "active" ? "badge-success"
+                      : employee.status === "busy" ? "badge-warning"
+                      : employee.status === "invited" ? "badge-info"
+                      : "badge-muted"
+                    }`}>
                       {employee.status}
                     </span>
                   </td>
-                  <td className="p-4 text-muted-foreground">
-                    {employee.joinDate}
-                  </td>
-                  <td className="p-4">
+                  <td className="px-4 py-3.5 text-sm text-muted-foreground">{employee.joinDate}</td>
+                  <td className="px-4 py-3.5">
                     <div className="flex items-center justify-end gap-2 relative" ref={showMenu === employee.id ? menuRef : null}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setShowMenu(
-                            showMenu === employee.id ? null : employee.id,
-                          );
+                          setShowMenu(showMenu === employee.id ? null : employee.id);
                         }}
-                        className="p-2 rounded-lg hover:bg-muted transition-colors">
+                        className="p-2 rounded-xl hover:bg-muted transition-colors opacity-0 group-hover:opacity-100">
                         <MoreVertical className="w-4 h-4 text-muted-foreground" />
                       </button>
                       {showMenu === employee.id && (
-                        <div className="absolute right-0 top-10 w-48 bg-card rounded-xl border border-border shadow-soft-lg z-10 animate-fade-in">
-                          <div className="p-2">
+                        <div className="absolute right-0 top-10 w-48 bg-card rounded-xl border border-border shadow-lg z-10 animate-fade-in">
+                          <div className="p-1.5">
                             <button
                               onClick={() => handleViewProfile(employee)}
-                              className="w-full p-2 rounded-lg text-left text-sm hover:bg-muted transition-colors flex items-center gap-2">
-                              <Edit2 className="w-4 h-4" />
+                              className="w-full px-3 py-2 rounded-lg text-left text-sm hover:bg-muted transition-colors flex items-center gap-2 font-medium">
+                              <Edit2 className="w-4 h-4 text-muted-foreground" />
                               View Profile
                             </button>
-                            <button 
+                            <button
                               onClick={() => {
                                 window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${employee.email}`, "_blank");
                                 setShowMenu(null);
                               }}
-                              className="w-full p-2 rounded-lg text-left text-sm hover:bg-muted transition-colors flex items-center gap-2">
-                              <Mail className="w-4 h-4" />
+                              className="w-full px-3 py-2 rounded-lg text-left text-sm hover:bg-muted transition-colors flex items-center gap-2 font-medium">
+                              <Mail className="w-4 h-4 text-muted-foreground" />
                               Send Email
                             </button>
                             {canManageEmployees && (
-                              <button 
+                              <button
                                 onClick={() => {
                                   setEmployeeToDelete(employee);
                                   setShowMenu(null);
                                 }}
-                                className="w-full p-2 rounded-lg text-left text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2">
+                                className="w-full px-3 py-2 rounded-lg text-left text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2 font-medium">
                                 <Trash2 className="w-4 h-4" />
                                 Remove
                               </button>

@@ -18,6 +18,7 @@ import EmojiPicker from 'emoji-picker-react';
 import { useAuth } from "@/context/AuthContext";
 import * as chatService from "@/services/chatService";
 import { format, isToday, isYesterday, isThisWeek, formatDistanceToNow } from "date-fns";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 export default function Chat() {
   const { socket, refreshUnreadCount } = useSocket();
@@ -38,6 +39,12 @@ export default function Chat() {
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  // Close emoji picker and chat options on Escape
+  useEscapeKey(() => {
+    if (isEmojiPickerOpen) { setIsEmojiPickerOpen(false); return; }
+    if (showChatOptions) { setShowChatOptions(false); return; }
+  }, isEmojiPickerOpen || showChatOptions);
 
   // Fetch conversations on mount
   useEffect(() => {
@@ -385,24 +392,24 @@ export default function Chat() {
 
   return (
     <div className="h-[calc(100vh-7rem)]">
-      <div className="dashboard-card h-full p-0 flex overflow-hidden">
+      <div className="bg-card border border-border rounded-2xl shadow-sm h-full p-0 flex overflow-hidden">
         {/* Sidebar */}
-        <div className="w-80 border-r border-border flex flex-col">
+        <div className="w-80 border-r border-border flex flex-col bg-card">
           {/* Search */}
           <div className="p-4 border-b border-border flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder="Search conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="input-field pl-10 w-full"
               />
             </div>
-            <button 
+            <button
               onClick={() => setIsNewChatOpen(true)}
-              className="p-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              className="p-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors"
               title="New Chat"
             >
               <Plus className="w-5 h-5" />
@@ -410,39 +417,44 @@ export default function Chat() {
           </div>
 
           {/* Chat List */}
-          <div className="flex-1 overflow-y-auto scrollbar-thin">
+          <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="p-4 text-center text-muted-foreground">Loading chats...</div>
+              <div className="flex items-center justify-center h-32">
+                <div className="w-6 h-6 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
             ) : filteredConversations.length === 0 ? (
-               <div className="p-4 text-center text-muted-foreground">No conversations found</div>
+              <div className="p-6 text-center">
+                <Users className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No conversations yet</p>
+              </div>
             ) : (
               filteredConversations.map((conv) => (
                 <button
                   key={conv.id}
                   onClick={() => handleSelectConversation(conv)}
-                  className={`w-full p-4 flex items-center gap-3 hover:bg-muted/50 transition-colors border-b border-border ${
-                    selectedConversation?.id === conv.id ? "bg-muted/50" : ""
+                  className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors border-b border-border/50 ${
+                    selectedConversation?.id === conv.id ? "bg-primary/8 border-l-2 border-l-primary" : ""
                   }`}>
-                  <div className="relative">
-                    <div className="avatar">
+                  <div className="relative flex-shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary font-bold text-sm flex items-center justify-center">
                       {getConversationAvatar(conv)}
                     </div>
-                    {/* Status dot (simplified for now) */}
-                    {/* <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card bg-muted-foreground`} /> */}
                   </div>
                   <div className="flex-1 min-w-0 text-left">
                     <div className="flex items-center justify-between">
-                      <p className="font-medium truncate">{getConversationName(conv)}</p>
+                      <p className={`text-sm truncate ${conv.unread_count > 0 ? "font-bold text-foreground" : "font-medium text-foreground"}`}>
+                        {getConversationName(conv)}
+                      </p>
                       <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
                         {conv.last_message?.created_at ? format(new Date(conv.last_message.created_at), 'HH:mm') : ''}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <p className="text-sm text-muted-foreground truncate">
+                    <div className="flex items-center justify-between mt-0.5">
+                      <p className={`text-xs truncate ${conv.unread_count > 0 ? "text-foreground" : "text-muted-foreground"}`}>
                         {conv.last_message?.content || "No messages yet"}
                       </p>
                       {conv.unread_count > 0 && (
-                        <span className="min-w-[20px] h-5 flex items-center justify-center bg-primary text-primary-foreground text-xs rounded-full px-1.5 ml-2">
+                        <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-primary text-primary-foreground text-[10px] font-bold rounded-full px-1 ml-2 flex-shrink-0">
                           {conv.unread_count}
                         </span>
                       )}
@@ -455,29 +467,33 @@ export default function Chat() {
         </div>
 
         {/* Chat Window */}
-        <div className="flex-1 flex flex-col bg-background/50">
+        <div className="flex-1 flex flex-col bg-muted/20 min-w-0">
           {!selectedConversation ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
-              <Users className="w-16 h-16 mb-4 opacity-20" />
-              <p>Select a conversation to start chatting</p>
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
+                <Users className="w-8 h-8 text-muted-foreground/40" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">Your messages</p>
+                <p className="text-sm text-muted-foreground mt-1">Select a conversation to start chatting</p>
+              </div>
             </div>
           ) : (
             <>
               {/* Header */}
-              <div className="p-4 border-b border-border flex items-center justify-between bg-card">
+              <div className="px-5 py-3.5 border-b border-border flex items-center justify-between bg-card">
                 <div className="flex items-center gap-3">
-                  <div className="avatar">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary font-bold text-sm flex items-center justify-center">
                     {getConversationAvatar(selectedConversation)}
                   </div>
                   <div>
-                    <h3 className="font-semibold">{getConversationName(selectedConversation)}</h3>
-                    {/* Show typing status or presence */}
+                    <h3 className="font-semibold text-sm">{getConversationName(selectedConversation)}</h3>
                     {Object.keys(typingUsers).length > 0 ? (
-                       <p className="text-sm text-primary animate-pulse">Typing...</p>
+                      <p className="text-xs text-primary animate-pulse">Typing...</p>
                     ) : (
-                       <p className="text-sm text-muted-foreground capitalize">
-                        {selectedConversation.is_group ? `${selectedConversation.participants.length} members` : 'Active'}
-                       </p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedConversation.is_group ? `${selectedConversation.participants.length} members` : 'Online'}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -531,12 +547,19 @@ export default function Chat() {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin relative" id="messages-container">
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-1" id="messages-container">
                 {loadingMessages ? (
-                  <div className="text-center p-4">Loading messages...</div>
+                  <div className="flex items-center justify-center h-full">
+                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
                 ) : messages.length === 0 ? (
-                  <div className="text-center p-8 text-muted-foreground opacity-50">
-                    No messages here yet. Say hello!
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
+                        <Send className="w-6 h-6 text-muted-foreground/50" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">No messages yet. Say hello! 👋</p>
+                    </div>
                   </div>
                 ) : (
                   messages.map((message, index) => {
@@ -617,52 +640,51 @@ export default function Chat() {
 
               {/* Input */}
               <div className="p-4 border-t border-border bg-card">
-                <div className="flex items-center gap-3 relative">
+                <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-2xl px-3 py-2 relative">
                   {isEmojiPickerOpen && (
-                    <div className="absolute bottom-full left-0 mb-4 z-50">
+                    <div className="absolute bottom-full left-0 mb-3 z-50">
                       <EmojiPicker onEmojiClick={onEmojiClick} width={300} height={400} />
-                      {/* Click overlay to close could be added here */}
-                      <div 
-                        className="fixed inset-0 z-40" 
+                      <div
+                        className="fixed inset-0 z-40"
                         onClick={() => setIsEmojiPickerOpen(false)}
                       />
                     </div>
                   )}
 
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
                     onChange={handleFileSelect}
                   />
 
-                  <button 
+                  <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 rounded-lg hover:bg-muted transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-muted transition-colors"
                   >
-                    <Paperclip className="w-5 h-5 text-muted-foreground" />
+                    <Paperclip className="w-4 h-4 text-muted-foreground" />
                   </button>
-                  <button 
+                  <button
                     onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                    className={`p-2 rounded-lg hover:bg-muted transition-colors ${isEmojiPickerOpen ? 'bg-muted' : ''}`}
+                    className={`p-1.5 rounded-lg hover:bg-muted transition-colors ${isEmojiPickerOpen ? 'bg-muted' : ''}`}
                   >
-                    <Smile className={`w-5 h-5 ${isEmojiPickerOpen ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <Smile className={`w-4 h-4 ${isEmojiPickerOpen ? 'text-primary' : 'text-muted-foreground'}`} />
                   </button>
                   <input
                     type="text"
                     value={messageInput}
                     onChange={handleTyping}
                     placeholder="Type a message..."
-                    className="input-field flex-1"
+                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                     onKeyPress={(e) => {
                       if (e.key === "Enter") handleSendMessage();
                     }}
                   />
-                  <button 
+                  <button
                     onClick={handleSendMessage}
                     disabled={!messageInput.trim()}
-                    className="p-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                    <Send className="w-5 h-5" />
+                    className="p-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    <Send className="w-4 h-4" />
                   </button>
                 </div>
               </div>

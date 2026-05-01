@@ -11,7 +11,7 @@ import Tasks from "./pages/Tasks";
 import Meetings from "./pages/Meetings";
 import Files from "./pages/Files";
 import Chat from "./pages/Chat";
-import Attendance from "./pages/Attendance";
+import Leaves from "./pages/Leaves";
 import Notes from "./pages/Notes";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -92,10 +92,10 @@ function App() {
           }
         />
         <Route
-          path="/attendance"
+          path="/leaves"
           element={
             <DashboardLayout>
-              <Attendance />
+              <Leaves />
             </DashboardLayout>
           }
         />

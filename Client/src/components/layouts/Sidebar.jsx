@@ -29,7 +29,7 @@ const navItems = [
   { icon: MessageSquare, label: "Chat", path: "/chat" },
   { icon: Video, label: "Meetings", path: "/meetings" },
   { icon: FileText, label: "Notes", path: "/notes" },
-  { icon: Calendar, label: "Attendance & Leave", path: "/attendance" },
+  { icon: Calendar, label: "Leaves", path: "/leaves" },
   { icon: FolderOpen, label: "Files", path: "/files" },
   { icon: BarChart3, label: "Analytics", path: "/analytics" },
 ];
@@ -127,7 +127,7 @@ export function Sidebar({ collapsed, onToggle }) {
 
       {/* Navigation */}
       <nav className="flex-1 min-h-0 p-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
+        {navItems.filter(item => item.label !== "Analytics" || isAdmin).map((item) => {
           const isActive = location.pathname === item.path;
           const isChat = item.path === "/chat";
           
