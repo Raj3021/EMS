@@ -34,7 +34,7 @@ const httpServer = createServer(app);
 // Initialize Socket.IO with CORS
 const io = new Server(httpServer, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:8080"], // Allow both standard Vite and current user port
+    origin: process.env.FRONTEND_URL ? [process.env.FRONTEND_URL, "http://localhost:5173", "http://localhost:8080", "http://localhost:8081"] : "*",
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -46,7 +46,10 @@ const __dirname = path.dirname(__filename);
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL ? [process.env.FRONTEND_URL, "http://localhost:5173", "http://localhost:8080", "http://localhost:8081"] : "*",
+  credentials: true
+}));
 
 // Attach io to req for routes
 app.use((req, res, next) => {
